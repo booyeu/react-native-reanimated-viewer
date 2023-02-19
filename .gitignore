@@ -1,0 +1,7 @@
+LICENSE
+node_modules/
+.idea/
+package-lock.json
+dist/
+.DS_Store
+example/
