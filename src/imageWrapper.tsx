@@ -32,9 +32,9 @@ const ImageWrapper = (props: ImageWrapperType) => {
 
   return (
     <TouchableOpacity
+      activeOpacity={1}
       {...viewProps}
       ref={containerRef}
-      activeOpacity={1}
       onPress={_onPress}
       style={[{ alignSelf: 'flex-start' }, style]}
     >

@@ -534,8 +534,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   );
 
   useEffect(() => {
-    const currentUrl = data[activeIndexState!].url;
-    if (imageSize.value[currentUrl]) {
+    const currentUrl = data[activeIndexState!]?.url;
+    if (!currentUrl || imageSize.value[currentUrl]) {
       return;
     }
     setLoading(true);
@@ -627,7 +627,10 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           </GestureDetector>
           {!animatedOver || !finishInit ? (
             <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
-              <Animated.Image source={activeSource} style={[styles.absolute, originalImageStyle]} />
+              <Animated.Image
+                source={{ ...activeSource }}
+                style={[styles.absolute, originalImageStyle]}
+              />
             </View>
           ) : null}
           {loading ? <ActivityIndicator color="#fff" /> : null}
