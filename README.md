@@ -68,14 +68,16 @@ You need to wrap your image components used by ImageWrapper in this package.
 
 ## Props
 ### ImageViewer
-| name                  | required | type                                                             | default   | description                       | Example                                                  |
-|-----------------------|----------|------------------------------------------------------------------|-----------|-----------------------------------|----------------------------------------------------------|
-| data                  | true     | ```{url: string}[]```                                            | undefined | The original url of image         | ```[{url:'http://***.***/***.png'}]```                   |
-| renderCustomComponent | false    | ```(_: {item: {url: string}; index: number;}) => ReactElement``` | undefined | The custom Element in ImageViewer | ```({index}) => <Text>current index is {index}</Text>``` |
+| name                  | required | type                                                             | default   | description                                                             | Example                                                  |
+|-----------------------|----------|------------------------------------------------------------------|-----------|-------------------------------------------------------------------------|----------------------------------------------------------|
+| data                  | true     | ```{url: string}[]```                                            | undefined | The original url of image                                               | ```[{url:'http://***.***/***.png'}]```                   |
+| renderCustomComponent | false    | ```(_: {item: {url: string}; index: number;}) => ReactElement``` | undefined | The custom Element in ImageViewer                                       | ```({index}) => <Text>current index is {index}</Text>``` |
+| onLongPress           | false    | ```(_: {item: {url: string}; index: number;}) => void```         | undefined | Once you pressed image viewer for a long time, the function will active | ```({index}) => console.log(`${index} pressed long`)```  |
 ### ImageWrapper
-| name      | required | type                                   | default   | description                       | Example                                                  |
-|-----------|----------|----------------------------------------|-----------|-----------------------------------|----------------------------------------------------------|
-| viewerRef | true     | ```MutableRefObject<ImageViewerRef>``` | undefined | The ref of imageViewer            | ```[{url:'http://***.***/***.png'}]```                   |
-| index     | true     | ```number```                           | undefined | The index of current ImageWrapper | ```({index}) => <Text>current index is {index}</Text>``` |
-| source    | true     | ```ImageURISource```                   | undefined | The inner component image's url   | ```{uri: 'https://***.***/***.png'}```                   |
-| style     | false    | ```ViewStyle```                        | undefined | The style of image wrapper        | ```{margin: 10}```                                       |
+| name      | required | type                                   | default   | description                                      | Example                                                  |
+|-----------|----------|----------------------------------------|-----------|--------------------------------------------------|----------------------------------------------------------|
+| viewerRef | true     | ```MutableRefObject<ImageViewerRef>``` | undefined | The ref of imageViewer                           | ```[{url:'http://***.***/***.png'}]```                   |
+| index     | true     | ```number```                           | undefined | The index of current ImageWrapper                | ```({index}) => <Text>current index is {index}</Text>``` |
+| source    | true     | ```ImageURISource```                   | undefined | The inner component image's url                  | ```{uri: 'https://***.***/***.png'}```                   |
+| style     | false    | ```ViewStyle```                        | undefined | The style of image wrapper                       | ```{margin: 10}```                                       |
+| onPress   | false    | ```() => void```                       | undefined | Once you pressed image, the function will active | ```() => console.log('pressed')```                       |

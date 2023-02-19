@@ -41,6 +41,7 @@ export type ImageViewerItemData = {
 };
 export type ImageViewerProps = {
   data: ImageViewerItemData[];
+  onLongPress?: (_: { item: ImageViewerItemData; index: number }) => void;
   renderCustomComponent?: (_: { item: ImageViewerItemData; index: number }) => ReactElement;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
 const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) => {
   const screenDimensions = Dimensions.get('screen');
 
-  const { data, renderCustomComponent } = props;
+  const { data, renderCustomComponent, onLongPress } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const originalImageSize = useRef<{ width?: number; height?: number }>();
 
@@ -76,6 +77,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const [finishInit, setFinishInit] = useState(false);
 
   const onFinishImage = useCallback(() => {
+    setFinishInit(true);
     setLoading(false);
   }, []);
 
@@ -280,9 +282,11 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageItemRef.current[activeIndexValue].current?.measure(
         (_x, _y, width, height, pageX, pageY) => {
           activeLayout.value = { width, height, pageX, pageY };
-          animatedRate.value = withTiming(1, undefined, (finished) => {
-            finished && runOnJS(setAnimatedOver)(true);
-          });
+          setTimeout(() => {
+            animatedRate.value = withTiming(1, undefined, (finished) => {
+              finished && runOnJS(setAnimatedOver)(true);
+            });
+          }, 0);
         },
       );
     },
@@ -502,6 +506,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     [imageX, imageY, savedImageX, savedImageY],
   );
   const imagePinchComposedGesture = Gesture.Simultaneous(imagePinchGesture, imagePinchPanGesture);
+  const imageLongPressGesture = useMemo(
+    () =>
+      Gesture.LongPress().onStart(() => {
+        if (onLongPress) {
+          runOnJS(onLongPress)({ index: activeIndex.value, item: data[activeIndex.value] });
+        }
+      }),
+    [onLongPress, data],
+  );
   const imageGesture = useMemo(
     () =>
       Gesture.Race(
@@ -509,8 +522,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         imageDragGestureX,
         imageTapGesture,
         imagePinchComposedGesture,
+        imageLongPressGesture,
       ),
-    [imageDragGestureY, imageDragGestureX, imageTapGesture, imagePinchComposedGesture],
+    [
+      imageDragGestureY,
+      imageDragGestureX,
+      imageTapGesture,
+      imagePinchComposedGesture,
+      imageLongPressGesture,
+    ],
   );
 
   useEffect(() => {
@@ -521,7 +541,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     setLoading(true);
     Image.getSize(currentUrl, (width, height) => {
       imageSize.value = { ...imageSize.value, [currentUrl]: { width, height } };
-      !activeIndexState && setFinishInit(true);
     });
   }, [activeIndexState, imageSize, data]);
 
@@ -540,9 +559,11 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       const startShow = () => {
         imageItemRef.current[index].current?.measure((_x, _y, width, height, pageX, pageY) => {
           activeLayout.value = { width, height, pageX, pageY };
-          animatedRate.value = withTiming(1, undefined, (finished) => {
-            finished && runOnJS(setAnimatedOver)(true);
-          });
+          setTimeout(() => {
+            animatedRate.value = withTiming(1, undefined, (finished) => {
+              finished && runOnJS(setAnimatedOver)(true);
+            });
+          }, 0);
         });
       };
       originalImageSize.current = _screenDimensions;
