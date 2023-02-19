@@ -1,22 +1,25 @@
 import React, { memo, MutableRefObject, useCallback, useEffect, useRef } from 'react';
-import { TouchableOpacity, ImageURISource, ViewStyle } from 'react-native';
+import { TouchableOpacity, ImageURISource, ViewStyle, ViewProps } from 'react-native';
 import { ImageViewerRef } from './imageViewer';
 
 export type ImageWrapperType = {
   viewerRef: MutableRefObject<ImageViewerRef>;
   index: number;
   source: ImageURISource;
-  onPress?: () => void;
+  onPress?: () => boolean | void;
+  viewProps?: ViewProps;
   children?: React.ReactNode;
   style?: ViewStyle;
 };
 
 const ImageWrapper = (props: ImageWrapperType) => {
-  const { viewerRef, index, children, source, style, onPress } = props;
+  const { viewerRef, index, children, source, style, onPress, viewProps } = props;
   const containerRef = useRef<TouchableOpacity>(null);
 
   const _onPress = useCallback(() => {
-    onPress?.();
+    if (onPress?.() === false) {
+      return;
+    }
     viewerRef.current.show({
       index,
       source,
@@ -29,6 +32,7 @@ const ImageWrapper = (props: ImageWrapperType) => {
 
   return (
     <TouchableOpacity
+      {...viewProps}
       ref={containerRef}
       activeOpacity={1}
       onPress={_onPress}
