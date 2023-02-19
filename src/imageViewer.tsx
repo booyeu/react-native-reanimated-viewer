@@ -19,6 +19,7 @@ import {
   View,
   Image,
   TouchableOpacity,
+  ImageResizeMode,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -43,6 +44,7 @@ export type ImageViewerProps = {
   data: ImageViewerItemData[];
   onLongPress?: (_: { item: ImageViewerItemData; index: number }) => void;
   renderCustomComponent?: (_: { item: ImageViewerItemData; index: number }) => ReactElement;
+  imageResizeMode?: ImageResizeMode;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -66,7 +68,7 @@ const styles = StyleSheet.create({
 const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) => {
   const screenDimensions = Dimensions.get('screen');
 
-  const { data, renderCustomComponent, onLongPress } = props;
+  const { data, renderCustomComponent, onLongPress, imageResizeMode } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const originalImageSize = useRef<{ width?: number; height?: number }>();
 
@@ -77,7 +79,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const [finishInit, setFinishInit] = useState(false);
 
   const onFinishImage = useCallback(() => {
-    setFinishInit(true);
     setLoading(false);
   }, []);
 
@@ -541,6 +542,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     setLoading(true);
     Image.getSize(currentUrl, (width, height) => {
       imageSize.value = { ...imageSize.value, [currentUrl]: { width, height } };
+      !activeIndexState && setFinishInit(true);
     });
   }, [activeIndexState, imageSize, data]);
 
@@ -615,6 +617,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 return (
                   <Animated.Image
                     key={`image-viewer-${currentIndex}`}
+                    resizeMode={imageResizeMode}
                     source={{
                       uri: data[currentIndex]?.url,
                     }}
@@ -629,6 +632,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
               <Animated.Image
                 source={{ ...activeSource }}
+                resizeMode="contain"
                 style={[styles.absolute, originalImageStyle]}
               />
             </View>
