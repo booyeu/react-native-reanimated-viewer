@@ -68,11 +68,12 @@ You need to wrap your image components used by ImageWrapper in this package.
 
 ## Props
 ### ImageViewer
-| name                  | required | type                                                             | default   | description                                                             | Example                                                  |
-|-----------------------|----------|------------------------------------------------------------------|-----------|-------------------------------------------------------------------------|----------------------------------------------------------|
-| data                  | true     | ```{url: string}[]```                                            | undefined | The original url of image                                               | ```[{url:'http://***.***/***.png'}]```                   |
-| renderCustomComponent | false    | ```(_: {item: {url: string}; index: number;}) => ReactElement``` | undefined | The custom Element in ImageViewer                                       | ```({index}) => <Text>current index is {index}</Text>``` |
-| onLongPress           | false    | ```(_: {item: {url: string}; index: number;}) => void```         | undefined | Once you pressed image viewer for a long time, the function will active | ```({index}) => console.log(`${index} pressed long`)```  |
+| name                   | required | type                                                             | default    | description                                                             | Example                                                  |
+|------------------------|----------|------------------------------------------------------------------|------------|-------------------------------------------------------------------------|----------------------------------------------------------|
+| data                   | true     | ```{url: string}[]```                                            | undefined  | The original url of image                                               | ```[{url:'http://***.***/***.png'}]```                   |
+| renderCustomComponent  | false    | ```(_: {item: {url: string}; index: number;}) => ReactElement``` | undefined  | The custom Element in ImageViewer                                       | ```({index}) => <Text>current index is {index}</Text>``` |
+| onLongPress            | false    | ```(_: {item: {url: string}; index: number;}) => void```         | undefined  | Once you pressed image viewer for a long time, the function will active | ```({index}) => console.log(`${index} pressed long`)```  |
+| imageResizeMode        | false    | ```ImageResizeMode```                                            | undefined  | The resizeMode props of image in viewer                                 | ```"contain"```                                          |
 ### ImageWrapper
 | name      | required | type                                   | default   | description                                                                                       | Example                                                  |
 |-----------|----------|----------------------------------------|-----------|---------------------------------------------------------------------------------------------------|----------------------------------------------------------|
