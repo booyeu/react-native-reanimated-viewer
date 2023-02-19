@@ -6,20 +6,22 @@ export type ImageWrapperType = {
   viewerRef: MutableRefObject<ImageViewerRef>;
   index: number;
   source: ImageURISource;
+  onPress?: () => void;
   children?: React.ReactNode;
   style?: ViewStyle;
 };
 
 const ImageWrapper = (props: ImageWrapperType) => {
-  const { viewerRef, index, children, source, style } = props;
+  const { viewerRef, index, children, source, style, onPress } = props;
   const containerRef = useRef<TouchableOpacity>(null);
 
-  const onPress = useCallback(() => {
+  const _onPress = useCallback(() => {
+    onPress?.();
     viewerRef.current.show({
       index,
       source,
     });
-  }, [index, source, viewerRef]);
+  }, [index, source, viewerRef, onPress]);
 
   useEffect(() => {
     viewerRef.current?.init({ itemRef: containerRef, index });
@@ -29,7 +31,7 @@ const ImageWrapper = (props: ImageWrapperType) => {
     <TouchableOpacity
       ref={containerRef}
       activeOpacity={1}
-      onPress={onPress}
+      onPress={_onPress}
       style={[{ alignSelf: 'flex-start' }, style]}
     >
       {children}
