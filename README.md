@@ -1,5 +1,5 @@
 # react-native-reanimated-viewer [![Monthly download](https://img.shields.io/npm/dm/react-native-reanimated-viewer.svg)](https://img.shields.io/npm/dm/react-native-reanimated-viewer.svg) [![Total downloads](https://img.shields.io/npm/dt/react-native-reanimated-viewer.svg)](https://img.shields.io/npm/dt/react-native-reanimated-viewer.svg)
-
+A high performance image viewer in react-native used by react-native-reanimated.
 ## Install
 ```bash
 npm install react-native-reanimated-viewer react-native-reanimated react-native-gesture-handler --save
