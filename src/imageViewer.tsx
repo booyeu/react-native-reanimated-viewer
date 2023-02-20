@@ -84,11 +84,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const [loading, setLoading] = useState(false);
   const [finishInit, setFinishInit] = useState(false);
 
-  const onFinishImage = useCallback(() => {
-    setLoading(false);
-    setFinishInit(true);
-  }, []);
-
   const imageSize = useSharedValue<Record<string, { width?: number; height?: number }>>({});
   const activeIndex = useSharedValue(0);
   const [activeIndexState, setActiveIndexState, activeIndexStateRef] = useStateRef<number>(0);
@@ -556,9 +551,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       return;
     }
     setLoading(true);
-    Image.getSize(currentUri, (width, height) => {
-      imageSize.value = { ...imageSize.value, [currentKey]: { width, height } };
-    });
   }, [activeIndexState, imageSize, data]);
 
   useImperativeHandle(ref, () => ({
@@ -620,19 +612,28 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 if (currentIndex < 0 || currentIndex >= data.length) {
                   return null;
                 }
-                const currentSource = data[currentIndex].source;
+                const currentData = data[currentIndex];
                 return (
                   <Animated.Image
                     key={`image-viewer-${currentIndex}`}
                     resizeMode={imageResizeMode}
                     source={
-                      typeof currentSource === 'object' ? { ...currentSource } : currentSource
+                      typeof currentData.source === 'object'
+                        ? { ...currentData.source }
+                        : currentData.source
                     }
-                    onLoadEnd={onFinishImage}
+                    onLoad={({ nativeEvent: { source } }) => {
+                      imageSize.value = { ...imageSize.value, [currentData.key]: source };
+                      setLoading(false);
+                      setFinishInit(true);
+                    }}
                     style={[styles.absolute, imageStyleList[index]]}
                   />
                 );
               })}
+              {loading ? (
+                <ActivityIndicator style={[StyleSheet.absoluteFill, styles.loading]} color="#fff" />
+              ) : null}
             </Animated.View>
           </GestureDetector>
           {!animatedOver || !finishInit ? (
@@ -643,9 +644,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 style={[styles.absolute, originalImageStyle]}
               />
             </View>
-          ) : null}
-          {loading ? (
-            <ActivityIndicator style={[StyleSheet.absoluteFill, styles.loading]} color="#fff" />
           ) : null}
         </>
       ) : null}
