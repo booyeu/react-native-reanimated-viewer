@@ -38,13 +38,15 @@ import {
 import { useStateRef } from 'react-hooks-extension';
 
 export type ImageViewerItemData = {
-  url: string;
+  key: string;
+  source: ImageURISource;
 };
 export type ImageViewerProps = {
   data: ImageViewerItemData[];
   onLongPress?: (_: { item: ImageViewerItemData; index: number }) => void;
   renderCustomComponent?: (_: { item: ImageViewerItemData; index: number }) => ReactElement;
   imageResizeMode?: ImageResizeMode;
+  onChange?: (currentIndex: number) => void;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -63,12 +65,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  loading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
 
 const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) => {
   const screenDimensions = Dimensions.get('screen');
 
-  const { data, renderCustomComponent, onLongPress, imageResizeMode } = props;
+  const { data, renderCustomComponent, onLongPress, imageResizeMode, onChange } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const originalImageSize = useRef<{ width?: number; height?: number }>();
 
@@ -80,6 +86,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
 
   const onFinishImage = useCallback(() => {
     setLoading(false);
+    setFinishInit(true);
   }, []);
 
   const imageSize = useSharedValue<Record<string, { width?: number; height?: number }>>({});
@@ -116,10 +123,10 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           : 0) +
         imagePosition -
         1;
-      if (!data[currentIndex]?.url) {
+      if (!data[currentIndex]?.key) {
         return {};
       }
-      const currentImageSize = imageSizeValue[data[currentIndex].url];
+      const currentImageSize = imageSizeValue[data[currentIndex].key];
       const currentHeight =
         ((currentImageSize?.height || 1) * screenDimensions.width) / (currentImageSize?.width || 1);
       const changeHeight =
@@ -299,7 +306,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     savedImageScale.value = 1;
     closeRate.value = withTiming(1, undefined, (finished) => {
       if (finished) {
-        runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndex.value].url]);
+        runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndex.value].key]);
         animatedRate.value = 0;
       }
     });
@@ -314,7 +321,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     savedImageX.value = currentImageX;
   }, []);
   const onEndScalePanInnerY = useWorkletCallback(() => {
-    const currentImageSize = imageSize.value[data[activeIndex.value].url];
+    const currentImageSize = imageSize.value[data[activeIndex.value].key];
     const currentImageHeight =
       (screenDimensions.width * (currentImageSize.height || 1)) / (currentImageSize.width || 1);
     const initY = (currentImageHeight - screenDimensions.height) / 2;
@@ -402,6 +409,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       showOriginalImage,
     ],
   );
+  const _onChange = useCallback(
+    (currentIndex: number) => {
+      setActiveIndexState(currentIndex);
+      onChange?.(currentIndex);
+    },
+    [onChange, setActiveIndexState],
+  );
   const imageDragGestureX = useMemo(
     () =>
       Gesture.Pan()
@@ -439,7 +453,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               () => {
                 activeIndex.value += event.translationX < 0 ? 1 : -1;
                 imageX.value = 0;
-                runOnJS(setActiveIndexState)(activeIndex.value);
+                runOnJS(_onChange)(activeIndex.value);
               },
             );
           } else {
@@ -457,7 +471,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       savedImageY,
       screenDimensions.width,
       onEndScalePan,
-      setActiveIndexState,
+      _onChange,
     ],
   );
   const imageTapGesture = useMemo(
@@ -535,14 +549,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   );
 
   useEffect(() => {
-    const currentUrl = data[activeIndexState!]?.url;
-    if (!currentUrl || imageSize.value[currentUrl]) {
+    const currentData = data[activeIndexState!];
+    const currentKey = currentData?.key;
+    const currentUri = currentData?.source?.uri;
+    if (!currentKey || imageSize.value[currentKey] || !currentUri) {
       return;
     }
     setLoading(true);
-    Image.getSize(currentUrl, (width, height) => {
-      imageSize.value = { ...imageSize.value, [currentUrl]: { width, height } };
-      !activeIndexState && setFinishInit(true);
+    Image.getSize(currentUri, (width, height) => {
+      imageSize.value = { ...imageSize.value, [currentKey]: { width, height } };
     });
   }, [activeIndexState, imageSize, data]);
 
@@ -568,20 +583,17 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }, 0);
         });
       };
-      originalImageSize.current = _screenDimensions;
-      if (source.width && source.height) {
-        originalImageSize.current = source;
-        startShow();
-      } else {
-        Image.getSize(
-          source.uri || '',
-          (width, height) => {
-            originalImageSize.current = { width, height };
-            startShow();
-          },
-          startShow,
-        );
-      }
+      Image.getSize(
+        source.uri || '',
+        (width, height) => {
+          originalImageSize.current = { width, height };
+          startShow();
+        },
+        () => {
+          originalImageSize.current = _screenDimensions;
+          startShow();
+        },
+      );
     },
   }));
 
@@ -590,13 +602,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       {activeSource ? (
         <>
           <GestureDetector gesture={imageGesture}>
-            <Animated.View
-              style={[
-                styles.animatedContainer,
-                { opacity: animatedOver && finishInit ? 1 : 0 },
-                imageContainerStyle,
-              ]}
-            >
+            <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
               {Array.from(new Array(3)).map((_, index) => {
                 if (!animatedOver && !activeIndexState) {
                   return null;
@@ -614,13 +620,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 if (currentIndex < 0 || currentIndex >= data.length) {
                   return null;
                 }
+                const currentSource = data[currentIndex].source;
                 return (
                   <Animated.Image
                     key={`image-viewer-${currentIndex}`}
                     resizeMode={imageResizeMode}
-                    source={{
-                      uri: data[currentIndex]?.url,
-                    }}
+                    source={
+                      typeof currentSource === 'object' ? { ...currentSource } : currentSource
+                    }
                     onLoadEnd={onFinishImage}
                     style={[styles.absolute, imageStyleList[index]]}
                   />
@@ -631,13 +638,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           {!animatedOver || !finishInit ? (
             <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
               <Animated.Image
-                source={{ ...activeSource }}
+                source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
                 resizeMode="contain"
                 style={[styles.absolute, originalImageStyle]}
               />
             </View>
           ) : null}
-          {loading ? <ActivityIndicator color="#fff" /> : null}
+          {loading ? (
+            <ActivityIndicator style={[StyleSheet.absoluteFill, styles.loading]} color="#fff" />
+          ) : null}
         </>
       ) : null}
       {renderCustomComponent?.({ item: data[activeIndexState!], index: activeIndexState! })}

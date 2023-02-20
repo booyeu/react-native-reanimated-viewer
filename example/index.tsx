@@ -25,7 +25,10 @@ const ImageViewerPage = () => {
   );
   return (
     <>
-      <ImageViewer ref={imageRef} data={mockData.map((el) => ({ url: el.url }))} />
+      <ImageViewer
+        ref={imageRef}
+        data={mockData.map((el) => ({ key: `key-${el.url}`, source: { uri: el.url } }))}
+      />
       <View style={{ flexDirection: 'row' }}>
         {mockData.map((el, index) => (
           <ImageWrapper
