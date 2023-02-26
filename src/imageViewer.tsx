@@ -365,7 +365,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageDragGestureY = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetY(5)
+        .activeOffsetY(20)
         .onStart(() => {
           if (imageScale.value === 1) {
             runOnJS(hideOriginalImage)();
@@ -420,7 +420,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageDragGestureX = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX([-5, 5])
+        .activeOffsetX([-20, 20])
         .onStart(() => {
           dragLastTime.value = Date.now().valueOf();
         })
@@ -518,17 +518,23 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     () => Gesture.Exclusive(imageDoubleTapGesture, imageSingleTapGesture),
     [imageDoubleTapGesture, imageSingleTapGesture],
   );
+  const pinchPosition = useSharedValue({ x: 0, y: 0 });
   const imagePinchGesture = useMemo(
     () =>
       Gesture.Pinch()
+        .onStart((event) => {
+          pinchPosition.value = { x: event.focalX, y: event.focalY };
+        })
         .onUpdate((event) => {
           imageScale.value = savedImageScale.value * event.scale;
-          const currentX = (screenDimensions.width / 2 - event.focalX) * imageScale.value;
-          imageX.value = currentX;
-          savedImageX.value = currentX;
-          const currentY = (screenDimensions.height / 2 - event.focalY) * imageScale.value;
-          imageY.value = currentY;
-          savedImageY.value = currentY;
+          imageX.value =
+            (screenDimensions.width / 2 - pinchPosition.value.x) *
+              (imageScale.value - savedImageScale.value) +
+            savedImageX.value * event.scale;
+          imageY.value =
+            (screenDimensions.height / 2 - pinchPosition.value.y) *
+              (imageScale.value - savedImageScale.value) +
+            savedImageY.value * event.scale;
         })
         .onEnd(() => {
           const currentScale = Math.max(1, imageScale.value);
@@ -537,6 +543,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           } else {
             imageScale.value = withTiming(currentScale);
             savedImageScale.value = currentScale;
+            savedImageY.value = imageY.value;
+            savedImageX.value = imageX.value;
           }
         }),
     [imageScale, savedImageScale, imageX, imageY, savedImageY, savedImageX, resetScale],
