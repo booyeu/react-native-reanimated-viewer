@@ -16,7 +16,6 @@ import {
   ImageURISource,
   ActivityIndicator,
   Dimensions,
-  View,
   Image,
   TouchableOpacity,
   ImageResizeMode,
@@ -81,7 +80,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
 
   const { data, renderCustomComponent, onLongPress, imageResizeMode, onChange } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
-  const originalImageSize = useRef<{ width?: number; height?: number }>();
 
   const [activeSource, setSourceData] = useState<ImageURISource>();
   const activeLayout = useSharedValue<LayoutData | undefined>(undefined);
@@ -89,6 +87,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const [loading, setLoading] = useState(false);
   const [finishInit, setFinishInit] = useState(false);
 
+  const originalImageSize = useSharedValue<{ width?: number; height?: number }>({});
   const imageSize = useSharedValue<Record<string, { width?: number; height?: number }>>({});
   const activeIndex = useSharedValue(0);
   const [activeIndexState, setActiveIndexState, activeIndexStateRef] = useStateRef<number>(0);
@@ -181,7 +180,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       formatImageStyle(
         0,
         imageSize.value,
-        originalImageSize.current,
+        originalImageSize.value,
         closeRate.value,
         imageX.value,
         imageY.value,
@@ -196,7 +195,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       formatImageStyle(
         1,
         imageSize.value,
-        originalImageSize.current,
+        originalImageSize.value,
         closeRate.value,
         imageX.value,
         imageY.value,
@@ -211,7 +210,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       formatImageStyle(
         2,
         imageSize.value,
-        originalImageSize.current,
+        originalImageSize.value,
         closeRate.value,
         imageX.value,
         imageY.value,
@@ -232,8 +231,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     }
     const currentHeight =
       currentLayout.height +
-      ((screenDimensions.width * (originalImageSize.current?.height || 1)) /
-        (originalImageSize.current?.width || 1) -
+      ((screenDimensions.width * (originalImageSize.value.height || 1)) /
+        (originalImageSize.value.width || 1) -
         currentLayout.height) *
         animatedRate.value;
     return {
@@ -277,7 +276,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     });
   }, [activeIndexStateRef]);
   const onCloseFinish = useCallback(
-    (lastFinishInit: boolean) => {
+    (lastFinishInit = false) => {
       setSourceData(undefined);
       setLoading(false);
       setFinishInit(lastFinishInit);
@@ -611,11 +610,11 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       Image.getSize(
         source.uri || '',
         (width, height) => {
-          originalImageSize.current = { width, height };
+          originalImageSize.value = { width, height };
           startShow();
         },
         () => {
-          originalImageSize.current = _screenDimensions;
+          originalImageSize.value = _screenDimensions;
           startShow();
         },
       );
@@ -675,13 +674,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               </Animated.View>
             </GestureDetector>
             {!animatedOver || !finishInit ? (
-              <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
+              <TouchableOpacity
+                style={[StyleSheet.absoluteFill, styles.animatedContainer]}
+                onPress={() => onCloseFinish()}
+              >
                 <Animated.Image
                   source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
                   resizeMode="contain"
                   style={[styles.absolute, originalImageStyle]}
                 />
-              </View>
+              </TouchableOpacity>
             ) : null}
           </>
         ) : null}
