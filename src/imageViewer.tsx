@@ -683,6 +683,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                   resizeMode="contain"
                   style={[styles.absolute, originalImageStyle]}
                 />
+                <ActivityIndicator style={[StyleSheet.absoluteFill, styles.loading]} color="#fff" />
               </TouchableOpacity>
             ) : null}
           </>
