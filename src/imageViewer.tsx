@@ -20,6 +20,7 @@ import {
   TouchableOpacity,
   ImageResizeMode,
   StatusBar,
+  View,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -114,12 +115,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     ) => {
       const relativeActiveIndex = ((activeIndexValue % 3) + 3) % 3;
       const currentIndex =
-        Math.floor(imagePosition / 3) * 3 +
-        (relativeActiveIndex > imagePosition && activeIndexValue > 0
-          ? 3
-          : relativeActiveIndex <= imagePosition && activeIndexValue < 0
-          ? -3
-          : 0) +
+        Math.floor(activeIndexValue / 3) * 3 +
+        (relativeActiveIndex > imagePosition && activeIndexValue > 0 ? 3 : 0) +
         imagePosition -
         1;
       if (!data[currentIndex]?.key) {
@@ -154,11 +151,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               (imagePosition -
                 1 +
                 Math.floor(activeIndexValue / 3) * 3 +
-                (relativeActiveIndex > imagePosition && activeIndexValue > 0
-                  ? 3
-                  : relativeActiveIndex <= imagePosition && activeIndexValue < 0
-                  ? -3
-                  : 0)) *
+                (relativeActiveIndex > imagePosition && activeIndexValue > 0 ? 3 : 0)) *
                 (screenDimensions.width + IMAGE_SPACE),
           },
           {
@@ -449,7 +442,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           ) {
             imageX.value = withTiming(
               (screenDimensions.width + IMAGE_SPACE) * (event.translationX < 0 ? -1 : 1),
-              undefined,
+              { duration: 200 },
               () => {
                 activeIndex.value += event.translationX < 0 ? 1 : -1;
                 imageX.value = 0;
@@ -582,7 +575,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     if (!currentKey || imageSize.value[currentKey] || !currentUri) {
       return;
     }
-    setLoading(true);
   }, [activeIndexState, imageSize, data]);
 
   useImperativeHandle(ref, () => ({
@@ -626,8 +618,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       <StatusBar backgroundColor="#000" barStyle="light-content" />
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
-          <>
-            <GestureDetector gesture={imageGesture}>
+          <GestureDetector gesture={imageGesture}>
+            <View>
               <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
                 {Array.from(new Array(3)).map((_, index) => {
                   if (!animatedOver && !activeIndexState) {
@@ -636,11 +628,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                   const relativeActiveIndex = ((activeIndexState! % 3) + 3) % 3;
                   const currentIndex =
                     Math.floor(activeIndexState! / 3) * 3 +
-                    (relativeActiveIndex > index && activeIndexState! > 0
-                      ? 3
-                      : relativeActiveIndex <= index && activeIndexState! < 0
-                      ? -3
-                      : 0) +
+                    (relativeActiveIndex > index && activeIndexState! > 0 ? 3 : 0) +
                     index -
                     1;
                   if (currentIndex < 0 || currentIndex >= data.length) {
@@ -656,10 +644,17 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                           ? { ...currentData.source }
                           : currentData.source
                       }
+                      onLoadStart={() => {
+                        if (relativeActiveIndex === index - 1) {
+                          setLoading(true);
+                        }
+                      }}
                       onLoad={({ nativeEvent: { source } }) => {
                         imageSize.value = { ...imageSize.value, [currentData.key]: source };
-                        setLoading(false);
-                        setFinishInit(true);
+                        if (relativeActiveIndex === index - 1) {
+                          setLoading(false);
+                          setFinishInit(true);
+                        }
                       }}
                       style={[styles.absolute, imageStyleList[index]]}
                     />
@@ -672,21 +667,26 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                   />
                 ) : null}
               </Animated.View>
-            </GestureDetector>
-            {!animatedOver || !finishInit ? (
-              <TouchableOpacity
-                style={[StyleSheet.absoluteFill, styles.animatedContainer]}
-                onPress={() => onCloseFinish()}
-              >
-                <Animated.Image
-                  source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
-                  resizeMode="contain"
-                  style={[styles.absolute, originalImageStyle]}
-                />
-                <ActivityIndicator style={[StyleSheet.absoluteFill, styles.loading]} color="#fff" />
-              </TouchableOpacity>
-            ) : null}
-          </>
+              {!animatedOver || !finishInit ? (
+                <TouchableOpacity
+                  style={[StyleSheet.absoluteFill, styles.animatedContainer]}
+                  onPress={() => onCloseFinish()}
+                >
+                  <Animated.Image
+                    source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
+                    resizeMode="contain"
+                    style={[styles.absolute, originalImageStyle]}
+                  />
+                  {!finishInit ? (
+                    <ActivityIndicator
+                      style={[StyleSheet.absoluteFill, styles.loading]}
+                      color="#fff"
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </GestureDetector>
         ) : null}
         {renderCustomComponent?.({ item: data[activeIndexState!], index: activeIndexState! })}
       </GestureHandlerRootView>
