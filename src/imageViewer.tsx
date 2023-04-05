@@ -49,6 +49,7 @@ export type ImageViewerProps = {
   renderCustomComponent?: (_: { item: ImageViewerItemData; index: number }) => ReactElement;
   imageResizeMode?: ImageResizeMode;
   onChange?: (currentIndex: number) => void;
+  dragUpToCloseEnabled?: boolean;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -79,7 +80,14 @@ const styles = StyleSheet.create({
 const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) => {
   const screenDimensions = Dimensions.get('screen');
 
-  const { data, renderCustomComponent, onLongPress, imageResizeMode, onChange } = props;
+  const {
+    data,
+    renderCustomComponent,
+    onLongPress,
+    imageResizeMode,
+    onChange,
+    dragUpToCloseEnabled,
+  } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
 
   const [activeSource, setSourceData] = useState<ImageURISource>();
@@ -357,7 +365,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageDragGestureY = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetY(20)
+        .activeOffsetY(dragUpToCloseEnabled ? [-20, 20] : 20)
         .onStart(() => {
           if (imageScale.value === 1) {
             runOnJS(hideOriginalImage)();
@@ -378,9 +386,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             onEndScalePan(event);
             return;
           }
+          const translationY = dragUpToCloseEnabled
+            ? Math.abs(event.translationY)
+            : event.translationY;
           if (
-            event.translationY < 100 &&
-            (Date.now().valueOf() - dragLastTime.value > 500 || event.translationY <= 0)
+            translationY < 100 &&
+            (Date.now().valueOf() - dragLastTime.value > 500 ||
+              (event.translationY <= 0 && !dragUpToCloseEnabled))
           ) {
             imageX.value = withTiming(0);
             imageY.value = withTiming(0);
