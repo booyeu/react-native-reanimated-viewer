@@ -297,7 +297,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             });
             closeRate.value = withTiming(1, undefined, (finished) => {
               if (finished) {
-                runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndex.value].key]);
+                runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndexValue].key]);
                 animatedRate.value = 0;
               }
             });
