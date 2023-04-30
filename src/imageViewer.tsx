@@ -6,7 +6,6 @@ import React, {
   useImperativeHandle,
   useCallback,
   useMemo,
-  useEffect,
   RefObject,
   ReactElement,
 } from 'react';
@@ -305,7 +304,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         },
       );
     },
-    [activeLayout, animatedRate],
+    [activeLayout, animatedRate, data],
   );
   const onClose = useWorkletCallback(() => {
     imageScale.value = withTiming(1);
@@ -579,15 +578,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageLongPressGesture,
     ],
   );
-
-  useEffect(() => {
-    const currentData = data[activeIndexState!];
-    const currentKey = currentData?.key;
-    const currentUri = currentData?.source?.uri;
-    if (!currentKey || imageSize.value[currentKey] || !currentUri) {
-      return;
-    }
-  }, [activeIndexState, imageSize, data]);
 
   useImperativeHandle(ref, () => ({
     init: ({ itemRef, index }) => {
