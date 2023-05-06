@@ -16,7 +16,6 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
-  TouchableOpacity,
   ImageResizeMode,
   StatusBar,
   View,
@@ -53,7 +52,7 @@ export type ImageViewerProps = {
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
   show: (_: { index: number; source: ImageURISource }) => void;
-  init: (_: { index: number; itemRef: RefObject<TouchableOpacity> }) => void;
+  init: (_: { index: number; itemRef: RefObject<View> }) => void;
 };
 
 const IMAGE_SPACE = 20;
@@ -87,7 +86,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     onChange,
     dragUpToCloseEnabled,
   } = props;
-  const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
+  const imageItemRef = useRef<RefObject<View>[]>([]);
+  const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
 
   const [activeSource, setSourceData] = useState<ImageURISource>();
   const activeLayout = useSharedValue<LayoutData | undefined>(undefined);
@@ -282,6 +282,10 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       setFinishInit(lastFinishInit);
       setAnimatedOver(false);
       showOriginalImage();
+      closeRate.value = 0;
+      imageY.value = 0;
+      imageX.value = 0;
+      animatedRate.value = 0;
     },
     [showOriginalImage],
   );
@@ -297,7 +301,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             closeRate.value = withTiming(1, undefined, (finished) => {
               if (finished) {
                 runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndexValue].key]);
-                animatedRate.value = 0;
               }
             });
           }, 0);
@@ -487,6 +490,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     savedImageX.value = 0;
     savedImageY.value = 0;
   }, []);
+  const imageOriginalTapGesture = useMemo(
+    () =>
+      Gesture.Tap().onEnd(() => {
+        onCloseFinish();
+      }),
+    [onCloseFinish],
+  );
   const imageSingleTapGesture = useMemo(
     () =>
       Gesture.Tap().onStart(() => {
@@ -585,9 +595,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     },
     show: ({ index, source }) => {
       const _screenDimensions = Dimensions.get('screen');
-      imageY.value = 0;
-      imageX.value = 0;
-      closeRate.value = 0;
       activeIndex.value = index;
       setActiveIndexState(index);
       setSourceData(source);
@@ -601,17 +608,25 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }, 0);
         });
       };
-      Image.getSize(
-        source.uri || '',
-        (width, height) => {
-          originalImageSize.value = { width, height };
-          startShow();
-        },
-        () => {
-          originalImageSize.value = _screenDimensions;
-          startShow();
-        },
-      );
+      if (imageMemoSizeRef.current[source.uri || '']) {
+        originalImageSize.value = imageMemoSizeRef.current[source.uri || ''];
+        startShow();
+      } else {
+        Image.getSize(
+          source.uri || '',
+          (width, height) => {
+            imageMemoSizeRef.current[source.uri || ''] = originalImageSize.value = {
+              width,
+              height,
+            };
+            startShow();
+          },
+          () => {
+            originalImageSize.value = _screenDimensions;
+            startShow();
+          },
+        );
+      }
     },
   }));
 
@@ -620,7 +635,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       <StatusBar backgroundColor="#000" barStyle="light-content" />
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
-          <GestureDetector gesture={imageGesture}>
+          <GestureDetector
+            gesture={!animatedOver || !finishInit ? imageOriginalTapGesture : imageGesture}
+          >
             <View>
               <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
                 {Array.from(new Array(3)).map((_, index) => {
@@ -670,10 +687,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 ) : null}
               </Animated.View>
               {!animatedOver || !finishInit ? (
-                <TouchableOpacity
-                  style={[StyleSheet.absoluteFill, styles.animatedContainer]}
-                  onPress={() => onCloseFinish()}
-                >
+                <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
                   <Animated.Image
                     source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
                     resizeMode="contain"
@@ -685,7 +699,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                       color="#fff"
                     />
                   ) : null}
-                </TouchableOpacity>
+                </View>
               ) : null}
             </View>
           </GestureDetector>
