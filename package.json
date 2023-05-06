@@ -2,14 +2,17 @@
   "name": "react-native-reanimated-viewer",
   "version": "1.0.4",
   "description": "A high performance image viewer in react-native used by react-native-reanimated",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "scripts": {
-    "build": "tsup index.ts --dts --clean"
-  },
+  "main": "lib/commonjs/index.js",
+  "module": "lib/module/index.js",
+  "react-native": "src/index.ts",
+  "types": "lib/typescript/index.d.ts",
   "files": [
-    "dist/**"
+    "lib/",
+    "src/"
   ],
+  "scripts": {
+    "build": "bob build"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BooYeu/react-native-reanimated-viewer.git"
@@ -43,14 +46,28 @@
     "eslint-plugin-react": "^7.32.1",
     "prettier": "^2.8.3",
     "react-native": ">=0.62",
+    "react-native-builder-bob": "^0.20.4",
     "react-native-gesture-handler": ">=2",
     "react-native-reanimated": ">=2",
-    "tsup": "^6.5.0",
-    "typescript": "^4.9.5"
+    "typescript": "^5.0.4"
   },
   "peerDependencies": {
     "react-native": ">=0.62",
     "react-native-gesture-handler": ">=2",
     "react-native-reanimated": ">=2"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      [
+        "typescript",
+        {
+          "project": "tsconfig.json"
+        }
+      ]
+    ]
   }
 }

@@ -2,5 +2,5 @@ LICENSE
 node_modules/
 .idea/
 package-lock.json
-dist/
+lib/
 .DS_Store

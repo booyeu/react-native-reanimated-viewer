@@ -3,7 +3,7 @@ import { TouchableOpacity, ImageURISource, ViewStyle, ViewProps } from 'react-na
 import { ImageViewerRef } from './imageViewer';
 
 export type ImageWrapperType = {
-  viewerRef: MutableRefObject<ImageViewerRef>;
+  viewerRef: MutableRefObject<ImageViewerRef | null>;
   index: number;
   source: ImageURISource;
   onPress?: () => boolean | void;
@@ -20,7 +20,7 @@ const ImageWrapper = (props: ImageWrapperType) => {
     if (onPress?.() === false) {
       return;
     }
-    viewerRef.current.show({
+    viewerRef.current?.show({
       index,
       source,
     });
