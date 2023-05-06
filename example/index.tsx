@@ -1,8 +1,8 @@
 import React, { memo, useRef, useMemo } from 'react';
 import { View, Image } from 'react-native';
-import { ImageWrapper, ImageViewer } from 'react-native-reanimated-viewer';
+import { ImageWrapper, ImageViewer, ImageViewerRef } from 'react-native-reanimated-viewer';
 const ImageViewerPage = () => {
-  const imageRef = useRef(null);
+  const imageRef = useRef<ImageViewerRef>(null);
   const mockData = useMemo(
     () => [
       {

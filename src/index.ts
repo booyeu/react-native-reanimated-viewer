@@ -2,8 +2,8 @@ import ImageViewer, {
   ImageViewerItemData,
   ImageViewerProps,
   ImageViewerRef,
-} from './src/imageViewer';
-import ImageWrapper, { ImageWrapperType } from './src/imageWrapper';
+} from './components/imageViewer';
+import ImageWrapper, { ImageWrapperType } from './components/imageWrapper';
 
 export {
   ImageViewer,
