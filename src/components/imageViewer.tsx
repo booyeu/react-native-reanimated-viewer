@@ -493,7 +493,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageOriginalTapGesture = useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
-        onCloseFinish();
+        runOnJS(onCloseFinish)();
       }),
     [onCloseFinish],
   );
