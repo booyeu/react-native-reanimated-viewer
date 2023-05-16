@@ -33,7 +33,6 @@
   },
   "homepage": "https://github.com/BooYeu/react-native-reanimated-viewer#readme",
   "dependencies": {
-    "react": ">=16.8.0",
     "react-hooks-extension": "*"
   },
   "devDependencies": {
@@ -45,6 +44,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-react": "^7.32.1",
     "prettier": "^2.8.3",
+    "react": ">=16.8.0",
     "react-native": ">=0.62",
     "react-native-builder-bob": "^0.20.4",
     "react-native-gesture-handler": ">=2",
@@ -52,6 +52,7 @@
     "typescript": "^5.0.4"
   },
   "peerDependencies": {
+    "react": ">=16.8.0",
     "react-native": ">=0.62",
     "react-native-gesture-handler": ">=2",
     "react-native-reanimated": ">=2"
