@@ -398,7 +398,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           ) {
             imageX.value = withTiming(0);
             imageY.value = withTiming(0);
-            showOriginalImage();
+            runOnJS(showOriginalImage)();
           } else {
             onClose();
           }
