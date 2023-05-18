@@ -2,13 +2,13 @@
   "name": "react-native-reanimated-viewer",
   "version": "1.2.0",
   "description": "A high performance image viewer in react-native used by react-native-reanimated",
-  "main": "dist/index.js",
+  "main": "dist/esm/index.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist/**"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --dts --clean"
+    "build": "tsup src/index.ts --dts --clean --format esm --legacy-output --sourcemap"
   },
   "repository": {
     "type": "git",

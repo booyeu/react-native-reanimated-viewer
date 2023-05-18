@@ -1,6 +1,5 @@
 import React, {
   forwardRef,
-  memo,
   useRef,
   useState,
   useImperativeHandle,
@@ -19,6 +18,7 @@ import {
   ImageResizeMode,
   StatusBar,
   View,
+  TouchableOpacity,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -52,7 +52,7 @@ export type ImageViewerProps = {
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
   show: (_: { index: number; source: ImageURISource }) => void;
-  init: (_: { index: number; itemRef: RefObject<View> }) => void;
+  init: (_: { index: number; itemRef: RefObject<TouchableOpacity> }) => void;
 };
 
 const IMAGE_SPACE = 20;
@@ -86,7 +86,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     onChange,
     dragUpToCloseEnabled,
   } = props;
-  const imageItemRef = useRef<RefObject<View>[]>([]);
+  const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
 
   const [activeSource, setSourceData] = useState<ImageURISource>();
@@ -710,4 +710,4 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   );
 });
 
-export default memo(ImageViewer);
+export default React.memo(ImageViewer);

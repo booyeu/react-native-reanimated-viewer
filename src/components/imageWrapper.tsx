@@ -1,4 +1,4 @@
-import React, { memo, MutableRefObject, useCallback, useEffect, useRef } from 'react';
+import React, { MutableRefObject, useCallback, useEffect, useRef } from 'react';
 import { TouchableOpacity, ImageURISource, ViewStyle, ViewProps } from 'react-native';
 import { ImageViewerRef } from './imageViewer';
 
@@ -43,4 +43,4 @@ const ImageWrapper = (props: ImageWrapperType) => {
   );
 };
 
-export default memo(ImageWrapper);
+export default React.memo(ImageWrapper);
