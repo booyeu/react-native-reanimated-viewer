@@ -27,6 +27,7 @@ import Animated, {
   withTiming,
   withDecay,
   useWorkletCallback,
+  runOnUI,
 } from 'react-native-reanimated';
 import {
   GestureDetector,
@@ -88,6 +89,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
+  const initIndexRef = useRef(0);
 
   const [activeSource, setSourceData] = useState<ImageURISource>();
   const activeLayout = useSharedValue<LayoutData | undefined>(undefined);
@@ -290,32 +292,51 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     [showOriginalImage],
   );
   const onCloseMeasure = useCallback(
-    (activeIndexValue: number) => {
-      imageItemRef.current[activeIndexValue].current?.measure(
-        (_x, _y, width, height, pageX, pageY) => {
-          activeLayout.value = { width, height, pageX, pageY };
-          setTimeout(() => {
-            animatedRate.value = withTiming(1, undefined, (finished) => {
-              finished && runOnJS(setAnimatedOver)(true);
-            });
-            closeRate.value = withTiming(1, undefined, (finished) => {
-              if (finished) {
-                runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndexValue].key]);
-              }
-            });
-          }, 0);
-        },
-      );
+    (_imageSize?: { width?: number; height?: number }) => {
+      const layoutFinish = (
+        width = screenDimensions.width / 3,
+        height = (screenDimensions.width * (_imageSize?.height || 1)) /
+          (_imageSize?.width || 1) /
+          3,
+        pageX = screenDimensions.width / 3,
+        pageY = (initIndexRef.current > (activeIndexStateRef.current || 0) ? -1 : 1) *
+          screenDimensions.height,
+      ) => {
+        activeLayout.value = { width, height, pageX, pageY };
+        setTimeout(() => {
+          animatedRate.value = withTiming(1, undefined, (finished) => {
+            finished && runOnJS(setAnimatedOver)(true);
+          });
+          closeRate.value = withTiming(1, undefined, (finished) => {
+            if (finished) {
+              runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndex.value].key]);
+            }
+          });
+        }, 0);
+      };
+      if (imageItemRef.current[activeIndexStateRef.current ?? -1]?.current) {
+        imageItemRef.current[activeIndexStateRef.current!].current?.measure(
+          (_x, _y, width, height, pageX, pageY) => {
+            layoutFinish(width, height, pageX, pageY);
+          },
+        );
+      } else {
+        layoutFinish();
+      }
     },
-    [activeLayout, animatedRate, data],
+    [activeLayout, animatedRate, data, screenDimensions],
   );
   const onClose = useWorkletCallback(() => {
     imageScale.value = withTiming(1);
-    runOnJS(onCloseMeasure)(activeIndex.value);
+    runOnJS(onCloseMeasure)(imageSize.value[data[activeIndex.value].key]);
     savedImageScale.value = 1;
     savedImageX.value = 0;
     savedImageY.value = 0;
   }, [data]);
+
+  const setImageSize = useWorkletCallback((key, _source) => {
+    imageSize.value = Object.assign({ [key]: _source }, imageSize.value);
+  }, []);
 
   const onEndScalePan = useWorkletCallback(
     (event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
@@ -595,6 +616,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     },
     show: ({ index, source }) => {
       const _screenDimensions = Dimensions.get('screen');
+      initIndexRef.current = index;
       activeIndex.value = index;
       setActiveIndexState(index);
       setSourceData(source);
@@ -608,7 +630,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }, 0);
         });
       };
-      if (imageMemoSizeRef.current[source.uri || '']) {
+      if (source.width || source.height) {
+        originalImageSize.value = { width: source.width, height: source.height };
+      } else if (imageMemoSizeRef.current[source.uri || '']) {
         originalImageSize.value = imageMemoSizeRef.current[source.uri || ''];
         startShow();
       } else {
@@ -669,7 +693,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                         }
                       }}
                       onLoad={({ nativeEvent: { source } }) => {
-                        imageSize.value = { ...imageSize.value, [currentData.key]: source };
+                        runOnUI(setImageSize)(currentData.key, source);
                         if (relativeActiveIndex === index - 1) {
                           setLoading(false);
                           setFinishInit(true);
