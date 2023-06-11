@@ -348,12 +348,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       } else if (event?.velocityX) {
         const targetImageX = Math.min(
           currentWidthRange,
-          Math.max(-currentWidthRange, imageX.value + (event.velocityX > 0 ? 30 : -30)),
+          Math.max(
+            -currentWidthRange,
+            imageX.value + (event.velocityX > 0 ? 50 : -50) * imageScale.value,
+          ),
         );
-        savedImageX.value = targetImageX;
-        imageX.value = withDecay({
+        savedImageX.value = imageX.value = withDecay({
           velocity: event.velocityX,
-          clamp: [imageX.value, targetImageX],
+          clamp: event.velocityX > 0 ? [imageX.value, targetImageX] : [targetImageX, imageX.value],
         });
       }
       const currentImageSize = imageSize.value[data[activeIndex.value].key];
@@ -372,12 +374,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       } else if (event?.velocityY) {
         const targetImageY = Math.min(
           currentHeightRange,
-          Math.max(-currentHeightRange, imageY.value + (event.velocityY > 0 ? 30 : -30)),
+          Math.max(
+            -currentHeightRange,
+            imageY.value + (event.velocityY > 0 ? 50 : -50) * imageScale.value,
+          ),
         );
-        savedImageY.value = targetImageY;
-        imageY.value = withDecay({
+        savedImageY.value = imageY.value = withDecay({
           velocity: event.velocityY,
-          clamp: [imageY.value, targetImageY],
+          clamp: event.velocityY > 0 ? [imageY.value, targetImageY] : [targetImageY, imageY.value],
         });
       }
     },
