@@ -659,7 +659,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }));
 
   return (
-    <Modal visible={!!activeSource} animationType="fade" transparent onRequestClose={onClose}>
+    <Modal
+      visible={!!activeSource}
+      animationType="fade"
+      transparent
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
       <StatusBar backgroundColor="#000" barStyle="light-content" />
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
