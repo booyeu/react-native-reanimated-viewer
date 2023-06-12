@@ -156,6 +156,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             translateX:
               manualLeft -
               (screenDimensions.width + IMAGE_SPACE) * activeIndexValue +
+              (screenDimensions.width - manualWidth) / 2 +
               (((activeLayoutValue?.pageX || 0) - manualLeft) * closeRateValue) / imageScaleValue +
               (imagePosition -
                 1 +
