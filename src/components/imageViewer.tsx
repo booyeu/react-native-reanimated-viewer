@@ -28,6 +28,7 @@ import Animated, {
   withDecay,
   useWorkletCallback,
   runOnUI,
+  cancelAnimation,
 } from 'react-native-reanimated';
 import {
   GestureDetector,
@@ -341,6 +342,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
 
   const onEndScalePan = useWorkletCallback(
     (event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
+      savedImageX.value = imageX.value;
+      savedImageY.value = imageY.value;
       const currentWidthRange = (screenDimensions.width * (imageScale.value - 1)) / 2;
       const currentImageX = Math.min(currentWidthRange, Math.max(-currentWidthRange, imageX.value));
       if (currentImageX !== imageX.value) {
@@ -354,10 +357,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             imageX.value + (event.velocityX > 0 ? 50 : -50) * imageScale.value,
           ),
         );
-        savedImageX.value = imageX.value = withDecay({
-          velocity: event.velocityX,
-          clamp: event.velocityX > 0 ? [imageX.value, targetImageX] : [targetImageX, imageX.value],
-        });
+        imageX.value = withDecay(
+          {
+            velocity: event.velocityX,
+            clamp:
+              event.velocityX > 0 ? [imageX.value, targetImageX] : [targetImageX, imageX.value],
+          },
+          () => {
+            savedImageX.value = imageX.value;
+          },
+        );
       }
       const currentImageSize = imageSize.value[data[activeIndex.value].key];
       const currentImageHeight =
@@ -380,10 +389,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             imageY.value + (event.velocityY > 0 ? 50 : -50) * imageScale.value,
           ),
         );
-        savedImageY.value = imageY.value = withDecay({
-          velocity: event.velocityY,
-          clamp: event.velocityY > 0 ? [imageY.value, targetImageY] : [targetImageY, imageY.value],
-        });
+        imageY.value = withDecay(
+          {
+            velocity: event.velocityY,
+            clamp:
+              event.velocityY > 0 ? [imageY.value, targetImageY] : [targetImageY, imageY.value],
+          },
+          () => {
+            savedImageY.value = imageY.value;
+          },
+        );
       }
     },
     [screenDimensions.width, data],
@@ -393,11 +408,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageDragGestureY = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetY(dragUpToCloseEnabled ? [-20, 20] : 20)
+        .activeOffsetY(dragUpToCloseEnabled || imageScale.value !== 1 ? [-20, 20] : 20)
         .onStart(() => {
           if (imageScale.value === 1) {
             runOnJS(hideOriginalImage)();
             dragLastTime.value = Date.now().valueOf();
+          } else {
+            cancelAnimation(imageX);
+            cancelAnimation(imageY);
           }
         })
         .onUpdate((event) => {
@@ -454,7 +472,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       Gesture.Pan()
         .activeOffsetX([-20, 20])
         .onStart(() => {
-          dragLastTime.value = Date.now().valueOf();
+          if (imageScale.value === 1) {
+            dragLastTime.value = Date.now().valueOf();
+          } else {
+            cancelAnimation(imageX);
+            cancelAnimation(imageY);
+          }
         })
         .onUpdate((event) => {
           if (imageScale.value !== 1) {
