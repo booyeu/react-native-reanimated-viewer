@@ -50,6 +50,8 @@ export type ImageViewerProps = {
   imageResizeMode?: ImageResizeMode;
   onChange?: (currentIndex: number) => void;
   dragUpToCloseEnabled?: boolean;
+  maxScale?: number;
+  doubleTapScale?: number;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -87,6 +89,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     imageResizeMode,
     onChange,
     dragUpToCloseEnabled,
+    maxScale = 3,
+    doubleTapScale = 2,
   } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
@@ -564,17 +568,17 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           if (imageScale.value !== 1) {
             resetScale();
           } else {
-            imageScale.value = withTiming(3);
-            savedImageScale.value = 3;
-            const currentX = (screenDimensions.width / 2 - event.x) * 3;
+            imageScale.value = withTiming(doubleTapScale);
+            savedImageScale.value = doubleTapScale;
+            const currentX = (screenDimensions.width / 2 - event.x) * doubleTapScale;
             imageX.value = withTiming(currentX);
             savedImageX.value = currentX;
-            const currentY = (screenDimensions.height / 2 - event.y) * 3;
+            const currentY = (screenDimensions.height / 2 - event.y) * doubleTapScale;
             imageY.value = withTiming(currentY);
             savedImageY.value = currentY;
           }
         }),
-    [resetScale, imageScale],
+    [resetScale, imageScale, doubleTapScale],
   );
   const imageTapGesture = useMemo(
     () => Gesture.Exclusive(imageDoubleTapGesture, imageSingleTapGesture),
@@ -599,7 +603,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             savedImageY.value * event.scale;
         })
         .onEnd(() => {
-          const currentScale = Math.max(1, imageScale.value);
+          const currentScale = Math.min(Math.max(1, imageScale.value), maxScale);
           if (currentScale === 1) {
             resetScale();
           } else {
@@ -609,7 +613,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             savedImageX.value = imageX.value;
           }
         }),
-    [imageScale, savedImageScale, imageX, imageY, savedImageY, savedImageX, resetScale],
+    [imageScale, savedImageScale, imageX, imageY, savedImageY, savedImageX, resetScale, maxScale],
   );
   const imageLongPressGesture = useMemo(
     () =>
