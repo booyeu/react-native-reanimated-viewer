@@ -39,6 +39,10 @@ import {
 } from 'react-native-gesture-handler';
 import { useStateRef } from 'react-hooks-extension';
 
+export enum GestureEnum {
+  TAP = 'TAP',
+  MODAL = 'MODAL',
+}
 export type ImageViewerItemData = {
   key: string;
   source: ImageURISource;
@@ -52,6 +56,12 @@ export type ImageViewerProps = {
   dragUpToCloseEnabled?: boolean;
   maxScale?: number;
   doubleTapScale?: number;
+  shouldCloseViewer?: (props: {
+    gesture: GestureEnum;
+    index: number;
+    imageData: ImageViewerItemData;
+    loaded: boolean;
+  }) => boolean;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -91,6 +101,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     dragUpToCloseEnabled,
     maxScale = 3,
     doubleTapScale = 2,
+    shouldCloseViewer,
   } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
@@ -284,7 +295,19 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     });
   }, [activeIndexStateRef]);
   const onCloseFinish = useCallback(
-    (lastFinishInit = false) => {
+    (lastFinishInit = false, shouldCloseGesture?: GestureEnum) => {
+      if (
+        shouldCloseGesture &&
+        shouldCloseViewer &&
+        activeIndexStateRef.current !== undefined &&
+        !shouldCloseViewer({
+          gesture: shouldCloseGesture,
+          index: activeIndexStateRef.current,
+          imageData: data[activeIndexStateRef.current],
+          loaded: false,
+        })
+      )
+        return;
       setSourceData(undefined);
       setLoading(false);
       setFinishInit(lastFinishInit);
@@ -295,10 +318,22 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageX.value = 0;
       animatedRate.value = 0;
     },
-    [showOriginalImage],
+    [showOriginalImage, shouldCloseViewer, data],
   );
   const onCloseMeasure = useCallback(
-    (_imageSize?: { width?: number; height?: number }) => {
+    (_imageSize?: { width?: number; height?: number }, shouldCloseGesture?: GestureEnum) => {
+      if (
+        shouldCloseGesture &&
+        shouldCloseViewer &&
+        activeIndexStateRef.current !== undefined &&
+        !shouldCloseViewer({
+          gesture: shouldCloseGesture,
+          index: activeIndexStateRef.current,
+          imageData: data[activeIndexStateRef.current],
+          loaded: true,
+        })
+      )
+        return;
       const layoutFinish = (
         width = screenDimensions.width / 3,
         height = (screenDimensions.width * (_imageSize?.height || 1)) /
@@ -330,15 +365,21 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         layoutFinish();
       }
     },
-    [activeLayout, animatedRate, data, screenDimensions],
+    [activeLayout, animatedRate, data, screenDimensions, shouldCloseViewer],
   );
-  const onClose = useWorkletCallback(() => {
-    imageScale.value = withTiming(1);
-    runOnJS(onCloseMeasure)(imageSize.value[data[activeIndex.value].key]);
-    savedImageScale.value = 1;
-    savedImageX.value = 0;
-    savedImageY.value = 0;
-  }, [data]);
+  const onClose = useWorkletCallback(
+    (shouldCloseGesture?: GestureEnum) => {
+      imageScale.value = withTiming(1);
+      runOnJS(onCloseMeasure)(imageSize.value[data[activeIndex.value].key], shouldCloseGesture);
+      savedImageScale.value = 1;
+      savedImageX.value = 0;
+      savedImageY.value = 0;
+    },
+    [data, onCloseMeasure],
+  );
+  const onRequestClose = useWorkletCallback(() => {
+    onClose(GestureEnum.MODAL);
+  }, [onClose]);
 
   const setImageSize = useWorkletCallback((key, _source) => {
     imageSize.value = Object.assign({ [key]: _source }, imageSize.value);
@@ -546,7 +587,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageOriginalTapGesture = useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
-        runOnJS(onCloseFinish)();
+        runOnJS(onCloseFinish)(false, GestureEnum.TAP);
       }),
     [onCloseFinish],
   );
@@ -556,7 +597,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         if (imageScale.value === 1) {
           runOnJS(hideOriginalImage)();
         }
-        onClose();
+        onClose(GestureEnum.TAP);
       }),
     [onClose, hideOriginalImage, imageScale],
   );
@@ -691,7 +732,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       visible={!!activeSource}
       animationType="fade"
       transparent
-      onRequestClose={onClose}
+      onRequestClose={onRequestClose}
       statusBarTranslucent
     >
       <StatusBar backgroundColor="#000" barStyle="light-content" />
