@@ -1,6 +1,6 @@
 import React, { MutableRefObject, useCallback, useEffect, useRef } from 'react';
 import { TouchableOpacity, ImageURISource, ViewStyle, ViewProps } from 'react-native';
-import { ImageViewerRef } from './imageViewer';
+import { ImageViewerRef } from './ImageViewer';
 
 export type ImageWrapperType = {
   viewerRef: MutableRefObject<ImageViewerRef | null>;
