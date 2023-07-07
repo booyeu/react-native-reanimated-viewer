@@ -111,6 +111,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const activeLayout = useSharedValue<LayoutData | undefined>(undefined);
   const [animatedOver, setAnimatedOver] = useState(false);
   const [loading, setLoading] = useState(false);
+  const loadedIndexListRef = useRef<number[]>([]);
   const [finishInit, setFinishInit] = useState(false);
 
   const originalImageSize = useSharedValue<{ width?: number; height?: number }>({});
@@ -160,18 +161,21 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           (changeHeight * (currentImageSize?.width || 1)) / (currentImageSize?.height || 1),
       );
       const manualHeight = Math.min(currentHeight, currentHeight + changeHeight);
-      const manualTop =
-        ((screenDimensions.height - currentHeight) / 2 + imageYValue) / imageScaleValue;
-      const manualLeft = imageXValue / imageScaleValue;
+      const manualTop = (screenDimensions.height - currentHeight) / 2 + imageYValue;
+      const manualLeft = imageXValue;
+      const resultWidth =
+        manualWidth + ((activeLayoutValue?.width || 0) - manualWidth) * closeRateValue;
+      const resultHeight =
+        manualHeight + ((activeLayoutValue?.height || 0) - manualHeight) * closeRateValue;
       return {
-        width: manualWidth + ((activeLayoutValue?.width || 0) - manualWidth) * closeRateValue,
-        height: manualHeight + ((activeLayoutValue?.height || 0) - manualHeight) * closeRateValue,
+        width: resultWidth * imageScaleValue,
+        height: resultHeight * imageScaleValue,
         transform: [
-          { scale: imageScaleValue },
           {
             translateX:
               manualLeft -
               (screenDimensions.width + IMAGE_SPACE) * activeIndexValue +
+              (resultWidth * (1 - imageScaleValue)) / 2 +
               ((screenDimensions.width - manualWidth) * (1 - closeRateValue)) / 2 +
               (((activeLayoutValue?.pageX || 0) - manualLeft) * closeRateValue) / imageScaleValue +
               (imagePosition -
@@ -183,6 +187,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           {
             translateY:
               manualTop +
+              (resultHeight * (1 - imageScaleValue)) / 2 +
               (((activeLayoutValue?.pageY || 0) - manualTop) * closeRateValue) / imageScaleValue,
           },
         ],
@@ -386,12 +391,18 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }, []);
 
   const onEndScalePan = useWorkletCallback(
-    (event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>) => {
-      savedImageX.value = imageX.value;
-      savedImageY.value = imageY.value;
-      const currentWidthRange = (screenDimensions.width * (imageScale.value - 1)) / 2;
-      const currentImageX = Math.min(currentWidthRange, Math.max(-currentWidthRange, imageX.value));
-      if (currentImageX !== imageX.value) {
+    (
+      event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>,
+      layout?: { x: number; y: number },
+    ) => {
+      savedImageX.value = layout?.x || imageX.value;
+      savedImageY.value = layout?.y || imageY.value;
+      const currentWidthRange = (screenDimensions.width * (savedImageScale.value - 1)) / 2;
+      const currentImageX = Math.min(
+        currentWidthRange,
+        Math.max(-currentWidthRange, savedImageX.value),
+      );
+      if (currentImageX !== savedImageX.value) {
         imageX.value = withTiming(currentImageX);
         savedImageX.value = currentImageX;
       } else if (event?.velocityX) {
@@ -399,14 +410,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           currentWidthRange,
           Math.max(
             -currentWidthRange,
-            imageX.value + (event.velocityX > 0 ? 50 : -50) * imageScale.value,
+            savedImageX.value + (event.velocityX > 0 ? 50 : -50) * savedImageScale.value,
           ),
         );
         imageX.value = withDecay(
           {
             velocity: event.velocityX,
             clamp:
-              event.velocityX > 0 ? [imageX.value, targetImageX] : [targetImageX, imageX.value],
+              event.velocityX > 0
+                ? [savedImageX.value, targetImageX]
+                : [targetImageX, savedImageX.value],
           },
           () => {
             savedImageX.value = imageX.value;
@@ -417,13 +430,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       const currentImageHeight =
         (screenDimensions.width * (currentImageSize.height || 1)) / (currentImageSize.width || 1);
       const currentHeightRange = Math.abs(
-        (currentImageHeight * imageScale.value - screenDimensions.height) / 2,
+        (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
       );
       const currentImageY = Math.min(
         currentHeightRange,
-        Math.max(-currentHeightRange, imageY.value),
+        Math.max(-currentHeightRange, savedImageY.value),
       );
-      if (currentImageY !== imageY.value) {
+      if (currentImageY !== savedImageY.value) {
         imageY.value = withTiming(currentImageY);
         savedImageY.value = currentImageY;
       } else if (event?.velocityY) {
@@ -431,14 +444,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           currentHeightRange,
           Math.max(
             -currentHeightRange,
-            imageY.value + (event.velocityY > 0 ? 50 : -50) * imageScale.value,
+            savedImageY.value + (event.velocityY > 0 ? 50 : -50) * savedImageScale.value,
           ),
         );
         imageY.value = withDecay(
           {
             velocity: event.velocityY,
             clamp:
-              event.velocityY > 0 ? [imageY.value, targetImageY] : [targetImageY, imageY.value],
+              event.velocityY > 0
+                ? [savedImageY.value, targetImageY]
+                : [targetImageY, savedImageY.value],
           },
           () => {
             savedImageY.value = imageY.value;
@@ -626,6 +641,18 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     [imageDoubleTapGesture, imageSingleTapGesture],
   );
   const pinchPosition = useSharedValue({ x: 0, y: 0 });
+  const getPinchLayout = useWorkletCallback((scale: number) => {
+    return {
+      x:
+        (screenDimensions.width / 2 - pinchPosition.value.x) *
+          (imageScale.value - savedImageScale.value) +
+        savedImageX.value * scale,
+      y:
+        (screenDimensions.height / 2 - pinchPosition.value.y) *
+          (imageScale.value - savedImageScale.value) +
+        savedImageY.value * scale,
+    };
+  }, []);
   const imagePinchGesture = useMemo(
     () =>
       Gesture.Pinch()
@@ -634,14 +661,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         })
         .onUpdate((event) => {
           imageScale.value = savedImageScale.value * event.scale;
-          imageX.value =
-            (screenDimensions.width / 2 - pinchPosition.value.x) *
-              (imageScale.value - savedImageScale.value) +
-            savedImageX.value * event.scale;
-          imageY.value =
-            (screenDimensions.height / 2 - pinchPosition.value.y) *
-              (imageScale.value - savedImageScale.value) +
-            savedImageY.value * event.scale;
+          const { x, y } = getPinchLayout(event.scale);
+          imageX.value = x;
+          imageY.value = y;
         })
         .onEnd(() => {
           const currentScale = Math.min(Math.max(1, imageScale.value), maxScale);
@@ -649,9 +671,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             resetScale();
           } else {
             imageScale.value = withTiming(currentScale);
+            const { x, y } = getPinchLayout(currentScale / savedImageScale.value);
             savedImageScale.value = currentScale;
-            savedImageY.value = imageY.value;
-            savedImageX.value = imageX.value;
+            onEndScalePan(undefined, { x, y });
           }
         }),
     [imageScale, savedImageScale, imageX, imageY, savedImageY, savedImageX, resetScale, maxScale],
@@ -744,9 +766,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             <View>
               <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
                 {Array.from(new Array(3)).map((_, index) => {
-                  if (!animatedOver && !activeIndexState) {
-                    return null;
-                  }
+                  if (!animatedOver) return null;
                   const relativeActiveIndex = ((activeIndexState! % 3) + 3) % 3;
                   const currentIndex =
                     Math.floor(activeIndexState! / 3) * 3 +
@@ -767,7 +787,10 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                           : currentData.source
                       }
                       onLoadStart={() => {
-                        if (relativeActiveIndex === index - 1) {
+                        if (
+                          relativeActiveIndex === index - 1 &&
+                          !loadedIndexListRef.current.includes(activeIndexState!)
+                        ) {
                           setLoading(true);
                         }
                       }}
@@ -776,6 +799,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                         if (relativeActiveIndex === index - 1) {
                           setLoading(false);
                           setFinishInit(true);
+                          if (!loadedIndexListRef.current.includes(activeIndexState!)) {
+                            loadedIndexListRef.current.push(activeIndexState!);
+                          }
                         }
                       }}
                       style={[styles.absolute, imageStyleList[index]]}
