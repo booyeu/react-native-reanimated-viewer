@@ -1,5 +1,11 @@
 import React, { MutableRefObject, useCallback, useEffect, useRef } from 'react';
-import { TouchableOpacity, ImageURISource, ViewStyle, ViewProps } from 'react-native';
+import {
+  TouchableOpacity,
+  ImageURISource,
+  ViewStyle,
+  TouchableOpacityProps,
+  StyleProp,
+} from 'react-native';
 import { ImageViewerRef } from './ImageViewer';
 
 export type ImageWrapperType = {
@@ -7,13 +13,13 @@ export type ImageWrapperType = {
   index: number;
   source: ImageURISource;
   onPress?: () => boolean | void;
-  viewProps?: ViewProps;
+  wrapperProps?: TouchableOpacityProps;
   children?: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 };
 
 const ImageWrapper = (props: ImageWrapperType) => {
-  const { viewerRef, index, children, source, style, onPress, viewProps } = props;
+  const { viewerRef, index, children, source, style, onPress, wrapperProps } = props;
   const containerRef = useRef<TouchableOpacity>(null);
 
   const _onPress = useCallback(() => {
@@ -33,9 +39,9 @@ const ImageWrapper = (props: ImageWrapperType) => {
   return (
     <TouchableOpacity
       activeOpacity={1}
-      {...viewProps}
-      ref={containerRef}
       onPress={_onPress}
+      {...wrapperProps}
+      ref={containerRef}
       style={[{ alignSelf: 'flex-start' }, style]}
     >
       {children}
