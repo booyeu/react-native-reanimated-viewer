@@ -62,6 +62,10 @@ export type ImageViewerProps = {
     imageData: ImageViewerItemData;
     loaded: boolean;
   }) => boolean;
+  originalLayoutOffset?: {
+    pageX?: number;
+    pageY?: number;
+  };
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -102,6 +106,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     maxScale = 3,
     doubleTapScale = 2,
     shouldCloseViewer,
+    originalLayoutOffset,
   } = props;
   const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
@@ -318,9 +323,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       setFinishInit(lastFinishInit);
       setAnimatedOver(false);
       showOriginalImage();
-      closeRate.value = 0;
-      imageY.value = 0;
-      imageX.value = 0;
       animatedRate.value = 0;
     },
     [showOriginalImage, shouldCloseViewer, data],
@@ -363,14 +365,19 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       if (imageItemRef.current[activeIndexStateRef.current ?? -1]?.current) {
         imageItemRef.current[activeIndexStateRef.current!].current?.measure(
           (_x, _y, width, height, pageX, pageY) => {
-            layoutFinish(width, height, pageX, pageY);
+            layoutFinish(
+              width,
+              height,
+              pageX + (originalLayoutOffset?.pageX || 0),
+              pageY + (originalLayoutOffset?.pageY || 0),
+            );
           },
         );
       } else {
         layoutFinish();
       }
     },
-    [activeLayout, animatedRate, data, screenDimensions, shouldCloseViewer],
+    [activeLayout, animatedRate, data, screenDimensions, shouldCloseViewer, originalLayoutOffset],
   );
   const onClose = useWorkletCallback(
     (shouldCloseGesture?: GestureEnum) => {
@@ -387,11 +394,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }, [onClose]);
 
   const setImageSize = useWorkletCallback((key, _source) => {
-    imageSize.value = Object.assign({ [key]: _source }, imageSize.value);
+    imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
   }, []);
 
   const onEndScalePan = useWorkletCallback(
     (
+      _data: ImageViewerItemData[],
       event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>,
       layout?: { x: number; y: number },
     ) => {
@@ -426,7 +434,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           },
         );
       }
-      const currentImageSize = imageSize.value[data[activeIndex.value].key];
+      const currentImageSize = imageSize.value[_data[activeIndex.value].key];
       const currentImageHeight =
         (screenDimensions.width * (currentImageSize.height || 1)) / (currentImageSize.width || 1);
       const currentHeightRange = Math.abs(
@@ -461,7 +469,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         );
       }
     },
-    [screenDimensions.width, data],
+    [screenDimensions.width],
   );
 
   const dragLastTime = useSharedValue(0);
@@ -489,7 +497,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         })
         .onEnd((event) => {
           if (imageScale.value !== 1) {
-            onEndScalePan(event);
+            onEndScalePan(data, event);
             return;
           }
           const translationY = dragUpToCloseEnabled
@@ -518,6 +526,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       onClose,
       hideOriginalImage,
       showOriginalImage,
+      data,
     ],
   );
   const _onChange = useCallback(
@@ -553,7 +562,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         })
         .onEnd((event) => {
           if (imageScale.value !== 1) {
-            onEndScalePan(event);
+            onEndScalePan(data, event);
             return;
           }
           if (
@@ -588,6 +597,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       savedImageY,
       screenDimensions.width,
       onEndScalePan,
+      data,
       _onChange,
     ],
   );
@@ -673,10 +683,20 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             imageScale.value = withTiming(currentScale);
             const { x, y } = getPinchLayout(currentScale / savedImageScale.value);
             savedImageScale.value = currentScale;
-            onEndScalePan(undefined, { x, y });
+            onEndScalePan(data, undefined, { x, y });
           }
         }),
-    [imageScale, savedImageScale, imageX, imageY, savedImageY, savedImageX, resetScale, maxScale],
+    [
+      imageScale,
+      savedImageScale,
+      imageX,
+      imageY,
+      savedImageY,
+      savedImageX,
+      resetScale,
+      maxScale,
+      data,
+    ],
   );
   const imageLongPressGesture = useMemo(
     () =>
@@ -710,6 +730,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageItemRef.current[index] = itemRef;
     },
     show: ({ index, source }) => {
+      closeRate.value = 0;
+      imageY.value = 0;
+      imageX.value = 0;
       const _screenDimensions = Dimensions.get('screen');
       initIndexRef.current = index;
       activeIndex.value = index;
@@ -717,7 +740,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       setSourceData(source);
       const startShow = () => {
         imageItemRef.current[index].current?.measure((_x, _y, width, height, pageX, pageY) => {
-          activeLayout.value = { width, height, pageX, pageY };
+          activeLayout.value = {
+            width,
+            height,
+            pageX: pageX + (originalLayoutOffset?.pageX || 0),
+            pageY: pageY + (originalLayoutOffset?.pageY || 0),
+          };
           setTimeout(() => {
             animatedRate.value = withTiming(1, undefined, (finished) => {
               finished && runOnJS(setAnimatedOver)(true);
@@ -725,8 +753,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }, 0);
         });
       };
-      if (source.width || source.height) {
+      if (source.width && source.height) {
         originalImageSize.value = { width: source.width, height: source.height };
+        startShow();
       } else if (imageMemoSizeRef.current[source.uri || '']) {
         originalImageSize.value = imageMemoSizeRef.current[source.uri || ''];
         startShow();
@@ -788,15 +817,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                       }
                       onLoadStart={() => {
                         if (
-                          relativeActiveIndex === index - 1 &&
+                          relativeActiveIndex === index &&
                           !loadedIndexListRef.current.includes(activeIndexState!)
                         ) {
                           setLoading(true);
                         }
                       }}
                       onLoad={({ nativeEvent: { source } }) => {
-                        runOnUI(setImageSize)(currentData.key, source);
-                        if (relativeActiveIndex === index - 1) {
+                        runOnUI(setImageSize)(currentData.key, source || currentData.source);
+                        if (relativeActiveIndex === index) {
                           setLoading(false);
                           setFinishInit(true);
                           if (!loadedIndexListRef.current.includes(activeIndexState!)) {
