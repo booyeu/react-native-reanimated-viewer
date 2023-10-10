@@ -135,6 +135,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const formatImageStyle = useWorkletCallback(
     (
       imagePosition: number,
+      _dragUpToCloseEnabled = false,
       imageSizeValue,
       currentOriginalImageSize,
       closeRateValue,
@@ -157,16 +158,19 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       const currentHeight =
         ((currentImageSize?.height || 1) * screenDimensions.width) / (currentImageSize?.width || 1);
       const changeHeight =
-        (((currentOriginalImageSize?.height || 0) - screenDimensions.height) *
-          (imageScaleValue === 1 ? imageYValue : 1)) /
-        screenDimensions.height;
+        _dragUpToCloseEnabled || imageYValue > 0
+          ? (((currentOriginalImageSize?.height || 0) - screenDimensions.height) *
+              (imageScaleValue === 1 ? -Math.abs(imageYValue) : 1)) /
+            screenDimensions.height /
+            3
+          : 0;
       const manualWidth = Math.min(
         screenDimensions.width,
         screenDimensions.width +
           (changeHeight * (currentImageSize?.width || 1)) / (currentImageSize?.height || 1),
       );
       const manualHeight = Math.min(currentHeight, currentHeight + changeHeight);
-      const manualTop = (screenDimensions.height - currentHeight) / 2 + imageYValue;
+      const manualTop = (screenDimensions.height - manualHeight) / 2 + imageYValue;
       const manualLeft = imageXValue;
       const resultWidth =
         manualWidth + ((activeLayoutValue?.width || 0) - manualWidth) * closeRateValue;
@@ -208,6 +212,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     () =>
       formatImageStyle(
         0,
+        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -217,12 +222,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle],
+    [formatImageStyle, dragUpToCloseEnabled],
   );
   const imageStyle_1 = useAnimatedStyle(
     () =>
       formatImageStyle(
         1,
+        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -232,12 +238,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle],
+    [formatImageStyle, dragUpToCloseEnabled],
   );
   const imageStyle_2 = useAnimatedStyle(
     () =>
       formatImageStyle(
         2,
+        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -247,12 +254,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle],
+    [formatImageStyle, dragUpToCloseEnabled],
   );
-  const imageStyleList = useMemo(
-    () => [imageStyle_0, imageStyle_1, imageStyle_2],
-    [imageStyle_0, imageStyle_1, imageStyle_2],
-  );
+  const imageStyleList = [imageStyle_0, imageStyle_1, imageStyle_2];
   const originalImageStyle = useAnimatedStyle(() => {
     const currentLayout = activeLayout.value;
     if (!currentLayout) {
@@ -283,7 +287,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }, [screenDimensions.width]);
   const imageContainerStyle = useAnimatedStyle(() => {
     let opacity =
-      imageScale.value === 1
+      imageScale.value === 1 && (dragUpToCloseEnabled || imageY.value > 0)
         ? Math.round(
             0xff * (1 - Math.abs(imageY.value) / screenDimensions.height) * (1 - closeRate.value),
           ).toString(16)
@@ -292,7 +296,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     return {
       backgroundColor: `#000000${opacity}`,
     };
-  }, [screenDimensions.height]);
+  }, [screenDimensions.height, dragUpToCloseEnabled]);
 
   const hideOriginalImage = useCallback(() => {
     imageItemRef.current[activeIndexStateRef.current || 0]?.current?.setNativeProps({
@@ -817,7 +821,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                       }
                       onLoadStart={() => {
                         if (
-                          relativeActiveIndex === index &&
+                          relativeActiveIndex === index - 1 &&
                           !loadedIndexListRef.current.includes(activeIndexState!)
                         ) {
                           setLoading(true);
@@ -825,7 +829,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                       }}
                       onLoad={({ nativeEvent: { source } }) => {
                         runOnUI(setImageSize)(currentData.key, source || currentData.source);
-                        if (relativeActiveIndex === index) {
+                        if (relativeActiveIndex === index - 1) {
                           setLoading(false);
                           setFinishInit(true);
                           if (!loadedIndexListRef.current.includes(activeIndexState!)) {
