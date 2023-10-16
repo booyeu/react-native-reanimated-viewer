@@ -11,7 +11,7 @@ import { ImageViewerRef } from './ImageViewer';
 export type ImageWrapperType = {
   viewerRef: MutableRefObject<ImageViewerRef | null>;
   index: number;
-  source: ImageURISource;
+  source?: ImageURISource;
   onPress?: () => boolean | void;
   wrapperProps?: TouchableOpacityProps;
   children?: React.ReactNode;

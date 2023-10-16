@@ -69,7 +69,7 @@ export type ImageViewerProps = {
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
-  show: (_: { index: number; source: ImageURISource }) => void;
+  show: (_: { index: number; source?: ImageURISource }) => void;
   init: (_: { index: number; itemRef: RefObject<TouchableOpacity> }) => void;
 };
 
@@ -733,7 +733,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     init: ({ itemRef, index }) => {
       imageItemRef.current[index] = itemRef;
     },
-    show: ({ index, source }) => {
+    show: ({ index, source = data[index].source }) => {
       closeRate.value = 0;
       imageY.value = 0;
       imageX.value = 0;
