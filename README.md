@@ -8,7 +8,10 @@ cd ios & pod install
 Then you need follow the extra steps to finish the installation: [react-native-reanimated](https://github.com/software-mansion/react-native-reanimated) & [react-native-gesture-handler](https://github.com/software-mansion/react-native-gesture-handler).
 
 ## Example
+[example.gif](https://raw.githubusercontent.com/BooYeu/react-native-reanimated-viewer/main/example/example.gif)
+
 ![example](https://raw.githubusercontent.com/BooYeu/react-native-reanimated-viewer/main/example/example.gif)
+
 ```javascript
 import React, { memo, useRef, useMemo } from 'react';
 import { View, Image } from 'react-native';
