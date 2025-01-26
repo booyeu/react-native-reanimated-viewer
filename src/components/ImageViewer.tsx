@@ -16,7 +16,6 @@ import {
   Dimensions,
   Image,
   ImageResizeMode,
-  StatusBar,
   View,
   TouchableOpacity,
 } from 'react-native';
@@ -790,7 +789,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       onRequestClose={onRequestClose}
       statusBarTranslucent
     >
-      <StatusBar backgroundColor="#000" barStyle="light-content" />
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
           <GestureDetector
