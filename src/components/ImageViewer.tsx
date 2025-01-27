@@ -742,19 +742,28 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       setActiveIndexState(index);
       setSourceData(source);
       const startShow = () => {
-        imageItemRef.current[index].current?.measure((_x, _y, width, height, pageX, pageY) => {
-          activeLayout.value = {
-            width,
-            height,
-            pageX: pageX + (originalLayoutOffset?.pageX || 0),
-            pageY: pageY + (originalLayoutOffset?.pageY || 0),
-          };
+        // 兼容没有imageWrapper的情况
+        if (imageItemRef.current[index]?.current) {
+          imageItemRef.current[index].current!.measure((_x, _y, width, height, pageX, pageY) => {
+            activeLayout.value = {
+              width,
+              height,
+              pageX: pageX + (originalLayoutOffset?.pageX || 0),
+              pageY: pageY + (originalLayoutOffset?.pageY || 0),
+            };
+            setTimeout(() => {
+              animatedRate.value = withTiming(1, undefined, (finished) => {
+                finished && runOnJS(setAnimatedOver)(true);
+              });
+            }, 0);
+          });
+        } else {
           setTimeout(() => {
             animatedRate.value = withTiming(1, undefined, (finished) => {
               finished && runOnJS(setAnimatedOver)(true);
             });
           }, 0);
-        });
+        }
       };
       if (source.width && source.height) {
         originalImageSize.value = { width: source.width, height: source.height };
@@ -765,6 +774,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       } else {
         Image.getSize(
           source.uri || '',
+          // 0.77.0 开始支持 后续可以移除
           (width, height) => {
             imageMemoSizeRef.current[source.uri || ''] = originalImageSize.value = {
               width,
@@ -776,7 +786,19 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             originalImageSize.value = _screenDimensions;
             startShow();
           },
-        );
+        )
+          ?.then?.(({ width, height }: { width: number; height: number }) => {
+            // 兼容react-native 0.77.0
+            imageMemoSizeRef.current[source.uri || ''] = originalImageSize.value = {
+              width,
+              height,
+            };
+            startShow();
+          })
+          .catch(() => {
+            originalImageSize.value = _screenDimensions;
+            startShow();
+          });
       }
     },
   }));
