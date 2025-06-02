@@ -152,8 +152,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         return {};
       }
       const currentImageSize = imageSizeValue[data[currentIndex].key];
+      const imageWHRate = (currentImageSize?.width ?? 1) / (currentImageSize?.height ?? 1);
+      const screenWHRate = screenDimensions.width / screenDimensions.height;
       const currentHeight =
-        ((currentImageSize?.height || 1) * screenDimensions.width) / (currentImageSize?.width || 1);
+        imageWHRate > screenWHRate ? screenDimensions.width / imageWHRate : screenDimensions.height;
+      const currentWidth =
+        imageWHRate > screenWHRate ? screenDimensions.width : screenDimensions.height * imageWHRate;
       const changeHeight =
         dragUpToCloseEnabled || imageYValue > 0
           ? (((currentOriginalImageSize?.height || 0) - screenDimensions.height) *
@@ -161,11 +165,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             screenDimensions.height /
             3
           : 0;
-      const manualWidth = Math.min(
-        screenDimensions.width,
-        screenDimensions.width +
-          (changeHeight * (currentImageSize?.width || 1)) / (currentImageSize?.height || 1),
-      );
+      const manualWidth = Math.min(currentWidth, currentWidth + changeHeight * imageWHRate);
       const manualHeight = Math.min(currentHeight, currentHeight + changeHeight);
       const manualTop = (screenDimensions.height - manualHeight) / 2 + imageYValue;
       const manualLeft = imageXValue;
@@ -256,19 +256,32 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     if (!currentLayout) {
       return {};
     }
+    const imageWHRate =
+      (originalImageSize.value.width ?? 1) / (originalImageSize.value.height ?? 1);
+    const screenWHRate = screenDimensions.width / screenDimensions.height;
     const currentHeight =
       currentLayout.height +
-      ((screenDimensions.width * (originalImageSize.value.height || 1)) /
-        (originalImageSize.value.width || 1) -
+      ((imageWHRate > screenWHRate
+        ? screenDimensions.width / imageWHRate
+        : screenDimensions.height) -
         currentLayout.height) *
         animatedRate.value;
+    const currentWidth =
+      currentLayout.width +
+      ((imageWHRate > screenWHRate
+        ? screenDimensions.width
+        : screenDimensions.height * imageWHRate) -
+        currentLayout.width) *
+        animatedRate.value;
     return {
-      width:
-        currentLayout.width + (screenDimensions.width - currentLayout.width) * animatedRate.value,
+      width: currentWidth,
       height: currentHeight,
       transform: [
         {
-          translateX: currentLayout.pageX * (1 - animatedRate.value),
+          translateX:
+            currentLayout.pageX +
+            (Math.max(0, (screenDimensions.width - currentWidth) / 2) - currentLayout.pageX) *
+              animatedRate.value,
         },
         {
           translateY:
@@ -339,12 +352,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         })
       )
         return;
+      const imageWHRate = (_imageSize?.width ?? 1) / (_imageSize?.height ?? 1);
+      const screenWHRate = screenDimensions.width / screenDimensions.height;
+      const currentWidth =
+        imageWHRate > screenWHRate ? screenDimensions.width : screenDimensions.height * imageWHRate;
+      const currentHeight =
+        imageWHRate > screenWHRate ? screenDimensions.width / imageWHRate : screenDimensions.height;
       const layoutFinish = (
-        width = screenDimensions.width / 3,
-        height = (screenDimensions.width * (_imageSize?.height || 1)) /
-          (_imageSize?.width || 1) /
-          3,
-        pageX = screenDimensions.width / 3,
+        width = currentWidth / 3,
+        height = currentHeight / 3,
+        pageX = (screenDimensions.width - currentWidth / 2) / 2,
         pageY = (initIndexRef.current > (activeIndexStateRef.current || 0) ? -1 : 1) *
           screenDimensions.height,
       ) => {
@@ -417,7 +434,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     ) => {
       savedImageX.value = layout?.x || imageX.value;
       savedImageY.value = layout?.y || imageY.value;
-      const currentWidthRange = (screenDimensions.width * (savedImageScale.value - 1)) / 2;
+      const currentImageSize = imageSize.value[_data[activeIndex.value].key];
+      const imageWHRate = (currentImageSize.width ?? 1) / (currentImageSize.height ?? 1);
+      const screenWHRate = screenDimensions.width / screenDimensions.height;
+      const currentImageHeight =
+        imageWHRate > screenWHRate ? screenDimensions.width / imageWHRate : screenDimensions.height;
+      const currentImageWidth =
+        imageWHRate > screenWHRate ? screenDimensions.width : screenDimensions.height * imageWHRate;
+      const currentWidthRange = (currentImageWidth * (savedImageScale.value - 1)) / 2;
       const currentImageX = Math.min(
         currentWidthRange,
         Math.max(-currentWidthRange, savedImageX.value),
@@ -446,9 +470,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           },
         );
       }
-      const currentImageSize = imageSize.value[_data[activeIndex.value].key];
-      const currentImageHeight =
-        (screenDimensions.width * (currentImageSize.height || 1)) / (currentImageSize.width || 1);
       const currentHeightRange = Math.abs(
         (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
       );
@@ -885,7 +906,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                     />
                   );
                 })}
-                {loading ? (
+                {loading && animatedOver ? (
                   <ActivityIndicator
                     style={[StyleSheet.absoluteFill, styles.loading]}
                     color="#fff"
