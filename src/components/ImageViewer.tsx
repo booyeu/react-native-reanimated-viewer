@@ -816,7 +816,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             <View>
               <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
                 {Array.from(new Array(3)).map((_, index) => {
-                  if (!animatedOver) return null;
                   const relativeActiveIndex = ((activeIndexState! % 3) + 3) % 3;
                   const currentIndex =
                     Math.floor(activeIndexState! / 3) * 3 +
@@ -848,7 +847,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                         runOnUI(setImageSize)(currentData.key, source || currentData.source);
                         if (relativeActiveIndex === index - 1) {
                           setLoading(false);
-                          setFinishInit(true);
+                          setTimeout(() => {
+                            setFinishInit(true);
+                          }, 200);
                           if (!loadedIndexListRef.current.includes(activeIndexState!)) {
                             loadedIndexListRef.current.push(activeIndexState!);
                           }
