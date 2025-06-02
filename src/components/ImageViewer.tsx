@@ -17,7 +17,6 @@ import {
   Image,
   ImageResizeMode,
   View,
-  TouchableOpacity,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -69,7 +68,7 @@ export type ImageViewerProps = {
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
   show: (_: { index: number; source?: ImageURISource }) => void;
-  init: (_: { index: number; itemRef: RefObject<TouchableOpacity> }) => void;
+  init: (_: { index: number; itemRef: RefObject<View> }) => void;
 };
 
 const IMAGE_SPACE = 20;
@@ -107,7 +106,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     shouldCloseViewer,
     originalLayoutOffset,
   } = props;
-  const imageItemRef = useRef<RefObject<TouchableOpacity>[]>([]);
+  const imageItemRef = useRef<RefObject<View>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
   const initIndexRef = useRef(0);
 
@@ -134,15 +133,14 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const formatImageStyle = useWorkletCallback(
     (
       imagePosition: number,
-      _dragUpToCloseEnabled = false,
-      imageSizeValue,
-      currentOriginalImageSize,
-      closeRateValue,
-      imageXValue,
-      imageYValue,
-      activeLayoutValue,
-      activeIndexValue,
-      imageScaleValue,
+      imageSizeValue: Record<string, { width?: number; height?: number }>,
+      currentOriginalImageSize: { width?: number; height?: number },
+      closeRateValue: number,
+      imageXValue: number,
+      imageYValue: number,
+      activeLayoutValue: LayoutData | undefined,
+      activeIndexValue: number,
+      imageScaleValue: number,
     ) => {
       const relativeActiveIndex = ((activeIndexValue % 3) + 3) % 3;
       const currentIndex =
@@ -157,7 +155,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       const currentHeight =
         ((currentImageSize?.height || 1) * screenDimensions.width) / (currentImageSize?.width || 1);
       const changeHeight =
-        _dragUpToCloseEnabled || imageYValue > 0
+        dragUpToCloseEnabled || imageYValue > 0
           ? (((currentOriginalImageSize?.height || 0) - screenDimensions.height) *
               (imageScaleValue === 1 ? -Math.abs(imageYValue) : 1)) /
             screenDimensions.height /
@@ -205,13 +203,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           : 'flex') as 'none' | 'flex',
       };
     },
-    [screenDimensions.width, data],
+    [screenDimensions.width, data, dragUpToCloseEnabled],
   );
   const imageStyle_0 = useAnimatedStyle(
     () =>
       formatImageStyle(
         0,
-        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -221,13 +218,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle, dragUpToCloseEnabled],
+    [formatImageStyle],
   );
   const imageStyle_1 = useAnimatedStyle(
     () =>
       formatImageStyle(
         1,
-        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -237,13 +233,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle, dragUpToCloseEnabled],
+    [formatImageStyle],
   );
   const imageStyle_2 = useAnimatedStyle(
     () =>
       formatImageStyle(
         2,
-        dragUpToCloseEnabled,
         imageSize.value,
         originalImageSize.value,
         closeRate.value,
@@ -253,7 +248,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         activeIndex.value,
         imageScale.value,
       ),
-    [formatImageStyle, dragUpToCloseEnabled],
+    [formatImageStyle],
   );
   const imageStyleList = [imageStyle_0, imageStyle_1, imageStyle_2];
   const originalImageStyle = useAnimatedStyle(() => {
@@ -396,7 +391,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     onClose(GestureEnum.MODAL);
   }, [onClose]);
 
-  const setImageSize = useWorkletCallback((key, _source) => {
+  const setImageSize = useWorkletCallback((key: string, _source) => {
     imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
   }, []);
 
@@ -772,20 +767,22 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         originalImageSize.value = imageMemoSizeRef.current[source.uri || ''];
         startShow();
       } else {
-        Image.getSize(
-          source.uri || '',
-          // 0.77.0 开始支持 后续可以移除
-          (width, height) => {
-            imageMemoSizeRef.current[source.uri || ''] = originalImageSize.value = {
-              width,
-              height,
-            };
-            startShow();
-          },
-          () => {
-            originalImageSize.value = _screenDimensions;
-            startShow();
-          },
+        (
+          Image.getSize(
+            source.uri || '',
+            // 0.77.0 开始支持 后续可以移除
+            (width, height) => {
+              imageMemoSizeRef.current[source.uri || ''] = originalImageSize.value = {
+                width,
+                height,
+              };
+              startShow();
+            },
+            () => {
+              originalImageSize.value = _screenDimensions;
+              startShow();
+            },
+          ) as unknown as Promise<any>
         )
           ?.then?.(({ width, height }: { width: number; height: number }) => {
             // 兼容react-native 0.77.0

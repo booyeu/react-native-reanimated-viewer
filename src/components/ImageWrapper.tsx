@@ -5,6 +5,7 @@ import {
   ViewStyle,
   TouchableOpacityProps,
   StyleProp,
+  View,
 } from 'react-native';
 import { ImageViewerRef } from './ImageViewer';
 
@@ -20,7 +21,7 @@ export type ImageWrapperType = {
 
 const ImageWrapper = (props: ImageWrapperType) => {
   const { viewerRef, index, children, source, style, onPress, wrapperProps } = props;
-  const containerRef = useRef<TouchableOpacity>(null);
+  const containerRef = useRef<View>(null);
 
   const _onPress = useCallback(() => {
     if (onPress?.() === false) {
