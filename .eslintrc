@@ -4,7 +4,8 @@
   "plugins": [
     "react",
     "@typescript-eslint",
-    "prettier"
+    "prettier",
+    "react-hooks"
   ],
   "extends": [
     "eslint:recommended",
@@ -16,6 +17,7 @@
     "@typescript-eslint/ban-types": 0,
     "@typescript-eslint/no-explicit-any": 0,
     "@typescript-eslint/no-non-null-assertion": 0,
-    "react/display-name": 0
+    "react/display-name": 0,
+    "react-hooks/exhaustive-deps": "warn"
   }
 }

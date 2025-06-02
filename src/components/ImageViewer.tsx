@@ -323,7 +323,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       showOriginalImage();
       animatedRate.value = 0;
     },
-    [showOriginalImage, shouldCloseViewer, data],
+    [shouldCloseViewer, activeIndexStateRef, data, showOriginalImage, animatedRate],
   );
   const onCloseMeasure = useCallback(
     (_imageSize?: { width?: number; height?: number }, shouldCloseGesture?: GestureEnum) => {
@@ -375,7 +375,21 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         layoutFinish();
       }
     },
-    [activeLayout, animatedRate, data, screenDimensions, shouldCloseViewer, originalLayoutOffset],
+    [
+      shouldCloseViewer,
+      activeIndexStateRef,
+      data,
+      screenDimensions.width,
+      screenDimensions.height,
+      activeLayout,
+      animatedRate,
+      closeRate,
+      onCloseFinish,
+      imageSize,
+      activeIndex,
+      originalLayoutOffset?.pageX,
+      originalLayoutOffset?.pageY,
+    ],
   );
   const onClose = useWorkletCallback(
     (shouldCloseGesture?: GestureEnum) => {
@@ -514,17 +528,18 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }
         }),
     [
-      dragLastTime,
+      dragUpToCloseEnabled,
       imageScale,
+      hideOriginalImage,
+      dragLastTime,
       imageX,
       imageY,
       savedImageX,
       savedImageY,
       onEndScalePan,
-      onClose,
-      hideOriginalImage,
-      showOriginalImage,
       data,
+      showOriginalImage,
+      onClose,
     ],
   );
   const _onChange = useCallback(
@@ -589,7 +604,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageScale,
       imageX,
       activeIndex,
-      data.length,
       savedImageX,
       imageY,
       savedImageY,
@@ -642,7 +656,18 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             savedImageY.value = currentY;
           }
         }),
-    [resetScale, imageScale, doubleTapScale],
+    [
+      imageScale,
+      resetScale,
+      doubleTapScale,
+      savedImageScale,
+      screenDimensions.width,
+      screenDimensions.height,
+      imageX,
+      savedImageX,
+      imageY,
+      savedImageY,
+    ],
   );
   const imageTapGesture = useMemo(
     () => Gesture.Exclusive(imageDoubleTapGesture, imageSingleTapGesture),
@@ -685,14 +710,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }
         }),
     [
+      pinchPosition,
       imageScale,
       savedImageScale,
+      getPinchLayout,
       imageX,
       imageY,
-      savedImageY,
-      savedImageX,
-      resetScale,
       maxScale,
+      resetScale,
+      onEndScalePan,
       data,
     ],
   );
@@ -703,7 +729,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           runOnJS(onLongPress)({ index: activeIndex.value, item: data[activeIndex.value] });
         }
       }),
-    [onLongPress, data],
+    [onLongPress, activeIndex, data],
   );
   const imageGesture = useMemo(
     () =>
