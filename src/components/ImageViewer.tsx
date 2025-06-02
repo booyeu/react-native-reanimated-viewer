@@ -27,6 +27,7 @@ import Animated, {
   useWorkletCallback,
   runOnUI,
   cancelAnimation,
+  useAnimatedReaction,
 } from 'react-native-reanimated';
 import {
   GestureDetector,
@@ -98,7 +99,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     data,
     renderCustomComponent,
     onLongPress,
-    imageResizeMode,
+    imageResizeMode = 'contain',
     onChange,
     dragUpToCloseEnabled,
     maxScale = 3,
@@ -116,6 +117,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const [loading, setLoading] = useState(false);
   const loadedIndexListRef = useRef<number[]>([]);
   const [finishInit, setFinishInit] = useState(false);
+  const [isScale, setIsScale] = useState(false);
 
   const originalImageSize = useSharedValue<{ width?: number; height?: number }>({});
   const imageSize = useSharedValue<Record<string, { width?: number; height?: number }>>({});
@@ -129,6 +131,11 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const savedImageScale = useSharedValue(1);
   const savedImageX = useSharedValue(0);
   const savedImageY = useSharedValue(0);
+
+  useAnimatedReaction(
+    () => imageScale.value !== 1,
+    (value) => runOnJS(setIsScale)(value),
+  );
 
   const formatImageStyle = useWorkletCallback(
     (
@@ -509,30 +516,16 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageDragGestureY = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetY(dragUpToCloseEnabled || imageScale.value !== 1 ? [-20, 20] : 20)
+        .activeOffsetY(dragUpToCloseEnabled ? [-20, 20] : 20)
         .onStart(() => {
-          if (imageScale.value === 1) {
-            runOnJS(hideOriginalImage)();
-            dragLastTime.value = Date.now().valueOf();
-          } else {
-            cancelAnimation(imageX);
-            cancelAnimation(imageY);
-          }
+          runOnJS(hideOriginalImage)();
+          dragLastTime.value = Date.now().valueOf();
         })
         .onUpdate((event) => {
-          if (imageScale.value !== 1) {
-            imageX.value = savedImageX.value + event.translationX;
-            imageY.value = savedImageY.value + event.translationY;
-            return;
-          }
           imageX.value = event.translationX;
           imageY.value = event.translationY;
         })
         .onEnd((event) => {
-          if (imageScale.value !== 1) {
-            onEndScalePan(data, event);
-            return;
-          }
           const translationY = dragUpToCloseEnabled
             ? Math.abs(event.translationY)
             : event.translationY;
@@ -550,15 +543,10 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         }),
     [
       dragUpToCloseEnabled,
-      imageScale,
       hideOriginalImage,
       dragLastTime,
       imageX,
       imageY,
-      savedImageX,
-      savedImageY,
-      onEndScalePan,
-      data,
       showOriginalImage,
       onClose,
     ],
@@ -575,19 +563,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       Gesture.Pan()
         .activeOffsetX([-20, 20])
         .onStart(() => {
-          if (imageScale.value === 1) {
-            dragLastTime.value = Date.now().valueOf();
-          } else {
-            cancelAnimation(imageX);
-            cancelAnimation(imageY);
-          }
+          dragLastTime.value = Date.now().valueOf();
         })
         .onUpdate((event) => {
-          if (imageScale.value !== 1) {
-            imageX.value = savedImageX.value + event.translationX;
-            imageY.value = savedImageY.value + event.translationY;
-            return;
-          }
           imageX.value =
             event.translationX *
             ((event.translationX < 0 ? activeIndex.value < data.length - 1 : activeIndex.value > 0)
@@ -595,10 +573,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               : 0.4);
         })
         .onEnd((event) => {
-          if (imageScale.value !== 1) {
-            onEndScalePan(data, event);
-            return;
-          }
           if (
             (event.translationX < 0
               ? activeIndex.value < data.length - 1
@@ -620,19 +594,24 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           }
           savedImageX.value = 0;
         }),
-    [
-      dragLastTime,
-      imageScale,
-      imageX,
-      activeIndex,
-      savedImageX,
-      imageY,
-      savedImageY,
-      screenDimensions.width,
-      onEndScalePan,
-      data,
-      _onChange,
-    ],
+    [dragLastTime, imageX, activeIndex, savedImageX, screenDimensions.width, data, _onChange],
+  );
+  const imageDragGestureMove = useMemo(
+    () =>
+      Gesture.Pan()
+        .minDistance(5)
+        .onStart(() => {
+          cancelAnimation(imageX);
+          cancelAnimation(imageY);
+        })
+        .onUpdate((event) => {
+          imageX.value = savedImageX.value + event.translationX;
+          imageY.value = savedImageY.value + event.translationY;
+        })
+        .onEnd((event) => {
+          onEndScalePan(data, event);
+        }),
+    [data, imageX, imageY, onEndScalePan, savedImageX, savedImageY],
   );
   const resetScale = useWorkletCallback(() => {
     imageScale.value = withTiming(1);
@@ -769,6 +748,11 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageLongPressGesture,
     ],
   );
+  const imageGestureWithScale = useMemo(
+    () =>
+      Gesture.Race(imageDragGestureMove, imageTapGesture, imagePinchGesture, imageLongPressGesture),
+    [imageDragGestureMove, imageTapGesture, imagePinchGesture, imageLongPressGesture],
+  );
 
   useImperativeHandle(ref, () => ({
     init: ({ itemRef, index }) => {
@@ -858,7 +842,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
           <GestureDetector
-            gesture={!animatedOver || !finishInit ? imageOriginalTapGesture : imageGesture}
+            gesture={
+              !animatedOver || !finishInit
+                ? imageOriginalTapGesture
+                : isScale
+                ? imageGestureWithScale
+                : imageGesture
+            }
           >
             <View>
               <Animated.View style={[styles.animatedContainer, imageContainerStyle]}>
@@ -917,7 +907,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                 <View style={[StyleSheet.absoluteFill, styles.animatedContainer]}>
                   <Animated.Image
                     source={typeof activeSource === 'object' ? { ...activeSource } : activeSource}
-                    resizeMode="contain"
+                    resizeMode={imageResizeMode}
                     style={[styles.absolute, originalImageStyle]}
                   />
                   {!finishInit ? (
