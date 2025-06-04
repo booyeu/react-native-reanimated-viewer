@@ -29,13 +29,7 @@ import Animated, {
   cancelAnimation,
   useAnimatedReaction,
 } from 'react-native-reanimated';
-import {
-  GestureDetector,
-  Gesture,
-  GestureStateChangeEvent,
-  PanGestureHandlerEventPayload,
-  GestureHandlerRootView,
-} from 'react-native-gesture-handler';
+import { GestureDetector, Gesture, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useStateRef } from 'react-hooks-extension';
 
 export enum GestureEnum {
@@ -133,7 +127,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const savedImageY = useSharedValue(0);
 
   useAnimatedReaction(
-    () => imageScale.value !== 1,
+    () => savedImageScale.value !== 1,
     (value) => runOnJS(setIsScale)(value),
   );
 
@@ -323,7 +317,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     });
   }, [activeIndexStateRef]);
   const onCloseFinish = useCallback(
-    (lastFinishInit = false, shouldCloseGesture?: GestureEnum) => {
+    (shouldCloseGesture?: GestureEnum) => {
       if (
         shouldCloseGesture &&
         shouldCloseViewer &&
@@ -338,7 +332,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         return;
       setSourceData(undefined);
       setLoading(false);
-      setFinishInit(lastFinishInit);
+      setFinishInit(false);
       setAnimatedOver(false);
       showOriginalImage();
       animatedRate.value = 0;
@@ -379,7 +373,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           });
           closeRate.value = withTiming(1, undefined, (finished) => {
             if (finished) {
-              runOnJS(onCloseFinish)(!!imageSize.value[data[activeIndex.value].key]);
+              runOnJS(onCloseFinish)();
             }
           });
         }, 0);
@@ -409,8 +403,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       animatedRate,
       closeRate,
       onCloseFinish,
-      imageSize,
-      activeIndex,
       originalLayoutOffset?.pageX,
       originalLayoutOffset?.pageY,
     ],
@@ -432,85 +424,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const setImageSize = useWorkletCallback((key: string, _source) => {
     imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
   }, []);
-
-  const onEndScalePan = useWorkletCallback(
-    (
-      _data: ImageViewerItemData[],
-      event?: GestureStateChangeEvent<PanGestureHandlerEventPayload>,
-      layout?: { x: number; y: number },
-    ) => {
-      savedImageX.value = layout?.x || imageX.value;
-      savedImageY.value = layout?.y || imageY.value;
-      const currentImageSize = imageSize.value[_data[activeIndex.value].key];
-      const imageWHRate = (currentImageSize.width ?? 1) / (currentImageSize.height ?? 1);
-      const screenWHRate = screenDimensions.width / screenDimensions.height;
-      const currentImageHeight =
-        imageWHRate > screenWHRate ? screenDimensions.width / imageWHRate : screenDimensions.height;
-      const currentImageWidth =
-        imageWHRate > screenWHRate ? screenDimensions.width : screenDimensions.height * imageWHRate;
-      const currentWidthRange = (currentImageWidth * (savedImageScale.value - 1)) / 2;
-      const currentImageX = Math.min(
-        currentWidthRange,
-        Math.max(-currentWidthRange, savedImageX.value),
-      );
-      if (currentImageX !== savedImageX.value) {
-        imageX.value = withTiming(currentImageX);
-        savedImageX.value = currentImageX;
-      } else if (event?.velocityX) {
-        const targetImageX = Math.min(
-          currentWidthRange,
-          Math.max(
-            -currentWidthRange,
-            savedImageX.value + (event.velocityX > 0 ? 50 : -50) * savedImageScale.value,
-          ),
-        );
-        imageX.value = withDecay(
-          {
-            velocity: event.velocityX,
-            clamp:
-              event.velocityX > 0
-                ? [savedImageX.value, targetImageX]
-                : [targetImageX, savedImageX.value],
-          },
-          () => {
-            savedImageX.value = imageX.value;
-          },
-        );
-      }
-      const currentHeightRange = Math.abs(
-        (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
-      );
-      const currentImageY = Math.min(
-        currentHeightRange,
-        Math.max(-currentHeightRange, savedImageY.value),
-      );
-      if (currentImageY !== savedImageY.value) {
-        imageY.value = withTiming(currentImageY);
-        savedImageY.value = currentImageY;
-      } else if (event?.velocityY) {
-        const targetImageY = Math.min(
-          currentHeightRange,
-          Math.max(
-            -currentHeightRange,
-            savedImageY.value + (event.velocityY > 0 ? 50 : -50) * savedImageScale.value,
-          ),
-        );
-        imageY.value = withDecay(
-          {
-            velocity: event.velocityY,
-            clamp:
-              event.velocityY > 0
-                ? [savedImageY.value, targetImageY]
-                : [targetImageY, savedImageY.value],
-          },
-          () => {
-            savedImageY.value = imageY.value;
-          },
-        );
-      }
-    },
-    [screenDimensions.width],
-  );
 
   const dragLastTime = useSharedValue(0);
   const imageDragGestureY = useMemo(
@@ -609,9 +522,92 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           imageY.value = savedImageY.value + event.translationY;
         })
         .onEnd((event) => {
-          onEndScalePan(data, event);
+          savedImageX.value = imageX.value;
+          savedImageY.value = imageY.value;
+          const currentImageSize = imageSize.value[data[activeIndex.value].key];
+          const imageWHRate = (currentImageSize.width ?? 1) / (currentImageSize.height ?? 1);
+          const screenWHRate = screenDimensions.width / screenDimensions.height;
+          const currentImageHeight =
+            imageWHRate > screenWHRate
+              ? screenDimensions.width / imageWHRate
+              : screenDimensions.height;
+          const currentImageWidth =
+            imageWHRate > screenWHRate
+              ? screenDimensions.width
+              : screenDimensions.height * imageWHRate;
+          const currentWidthRange = (currentImageWidth * (savedImageScale.value - 1)) / 2;
+          const currentImageX = Math.min(
+            currentWidthRange,
+            Math.max(-currentWidthRange, savedImageX.value),
+          );
+          if (currentImageX !== savedImageX.value) {
+            imageX.value = withTiming(currentImageX);
+            savedImageX.value = currentImageX;
+          } else if (event?.velocityX) {
+            const targetImageX = Math.min(
+              currentWidthRange,
+              Math.max(
+                -currentWidthRange,
+                savedImageX.value + (event.velocityX > 0 ? 50 : -50) * savedImageScale.value,
+              ),
+            );
+            imageX.value = withDecay(
+              {
+                velocity: event.velocityX,
+                clamp:
+                  event.velocityX > 0
+                    ? [savedImageX.value, targetImageX]
+                    : [targetImageX, savedImageX.value],
+              },
+              () => {
+                savedImageX.value = imageX.value;
+              },
+            );
+          }
+          const currentHeightRange = Math.abs(
+            (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
+          );
+          const currentImageY = Math.min(
+            currentHeightRange,
+            Math.max(-currentHeightRange, savedImageY.value),
+          );
+          if (currentImageY !== savedImageY.value) {
+            imageY.value = withTiming(currentImageY);
+            savedImageY.value = currentImageY;
+          } else if (event?.velocityY) {
+            const targetImageY = Math.min(
+              currentHeightRange,
+              Math.max(
+                -currentHeightRange,
+                savedImageY.value + (event.velocityY > 0 ? 50 : -50) * savedImageScale.value,
+              ),
+            );
+            imageY.value = withDecay(
+              {
+                velocity: event.velocityY,
+                clamp:
+                  event.velocityY > 0
+                    ? [savedImageY.value, targetImageY]
+                    : [targetImageY, savedImageY.value],
+              },
+              () => {
+                savedImageY.value = imageY.value;
+              },
+            );
+          }
         }),
-    [data, imageX, imageY, onEndScalePan, savedImageX, savedImageY],
+    [
+      activeIndex,
+      data,
+      imageSize,
+      imageX,
+      imageY,
+      savedImageScale,
+      savedImageX,
+      savedImageY,
+      screenDimensions.height,
+      screenDimensions.width,
+    ],
   );
   const resetScale = useWorkletCallback(() => {
     imageScale.value = withTiming(1);
@@ -624,7 +620,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   const imageOriginalTapGesture = useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
-        runOnJS(onCloseFinish)(false, GestureEnum.TAP);
+        runOnJS(onCloseFinish)(GestureEnum.TAP);
       }),
     [onCloseFinish],
   );
@@ -673,30 +669,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     () => Gesture.Exclusive(imageDoubleTapGesture, imageSingleTapGesture),
     [imageDoubleTapGesture, imageSingleTapGesture],
   );
-  const pinchPosition = useSharedValue({ x: 0, y: 0 });
-  const getPinchLayout = useWorkletCallback((scale: number) => {
-    return {
-      x:
-        (screenDimensions.width / 2 - pinchPosition.value.x) *
-          (imageScale.value - savedImageScale.value) +
-        savedImageX.value * scale,
-      y:
-        (screenDimensions.height / 2 - pinchPosition.value.y) *
-          (imageScale.value - savedImageScale.value) +
-        savedImageY.value * scale,
-    };
-  }, []);
   const imagePinchGesture = useMemo(
     () =>
       Gesture.Pinch()
-        .onStart((event) => {
-          pinchPosition.value = { x: event.focalX, y: event.focalY };
-        })
         .onUpdate((event) => {
           imageScale.value = savedImageScale.value * event.scale;
-          const { x, y } = getPinchLayout(event.scale);
-          imageX.value = x;
-          imageY.value = y;
+          imageX.value = savedImageX.value * event.scale;
+          imageY.value = savedImageY.value * event.scale;
         })
         .onEnd(() => {
           const currentScale = Math.min(Math.max(1, imageScale.value), maxScale);
@@ -704,23 +683,17 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             resetScale();
           } else {
             imageScale.value = withTiming(currentScale);
-            const { x, y } = getPinchLayout(currentScale / savedImageScale.value);
+            const changedScale = currentScale / savedImageScale.value;
             savedImageScale.value = currentScale;
-            onEndScalePan(data, undefined, { x, y });
+            const currentImageX = savedImageX.value * changedScale;
+            const currentImageY = savedImageY.value * changedScale;
+            imageX.value = withTiming(currentImageX);
+            imageY.value = withTiming(currentImageY);
+            savedImageX.value = currentImageX;
+            savedImageY.value = currentImageY;
           }
         }),
-    [
-      pinchPosition,
-      imageScale,
-      savedImageScale,
-      getPinchLayout,
-      imageX,
-      imageY,
-      maxScale,
-      resetScale,
-      onEndScalePan,
-      data,
-    ],
+    [imageScale, savedImageScale, imageX, imageY, savedImageX, savedImageY, maxScale, resetScale],
   );
   const imageLongPressGesture = useMemo(
     () =>
@@ -884,9 +857,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                         runOnUI(setImageSize)(currentData.key, source || currentData.source);
                         if (relativeActiveIndex === index - 1) {
                           setLoading(false);
-                          setTimeout(() => {
-                            setFinishInit(true);
-                          }, 200);
+                          setFinishInit(true);
                           if (!loadedIndexListRef.current.includes(activeIndexState!)) {
                             loadedIndexListRef.current.push(activeIndexState!);
                           }
@@ -910,7 +881,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                     resizeMode={imageResizeMode}
                     style={[styles.absolute, originalImageStyle]}
                   />
-                  {!finishInit ? (
+                  {!finishInit && animatedOver ? (
                     <ActivityIndicator
                       style={[StyleSheet.absoluteFill, styles.loading]}
                       color="#fff"
