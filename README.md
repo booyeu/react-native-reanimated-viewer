@@ -12,6 +12,9 @@ Then you need follow the extra steps to finish the installation: [react-native-r
 
 ![example](https://raw.githubusercontent.com/BooYeu/react-native-reanimated-viewer/main/example/example.gif)
 
+### use ImageWrapper
+You need to wrap your image components used by ImageWrapper in this package.
+
 ```javascript
 import React, { memo, useRef, useMemo } from 'react';
 import { View, Image } from 'react-native';
@@ -69,8 +72,48 @@ const ImageViewerPage = () => {
 export default memo(ImageViewerPage);
 ```
 
-## Notice
-You need to wrap your image components used by ImageWrapper in this package.
+### no ImageWrapper
+```javascript
+import React, { memo, useRef, useMemo, useCallback } from 'react';
+import { View, TouchableOpacity, Text } from 'react-native';
+import { ImageWrapper, ImageViewer } from 'react-native-reanimated-viewer';
+const ImageViewerPage = () => {
+  const imageRef = useRef(null);
+  const mockData = useMemo(
+    () => [
+      {
+        smallUrl:
+          'https://img2.baidu.com/it/u=1835117106,152654887&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=556',
+        url: 'https://img2.baidu.com/it/u=1835117106,152654887&fm=253&fmt=auto&app=138&f=JPEG?w=500&h=556',
+      },
+      {
+        smallUrl:
+          'https://img1.baidu.com/it/u=139191814,3489949748&fm=253&fmt=auto&app=138&f=JPEG?w=491&h=491',
+        url: 'https://img1.baidu.com/it/u=139191814,3489949748&fm=253&fmt=auto&app=138&f=JPEG?w=491&h=491',
+      },
+      {
+        smallUrl:
+          'https://img0.baidu.com/it/u=2926715223,1445444764&fm=253&fmt=auto&app=120&f=JPEG?w=500&h=500',
+        url: 'https://img0.baidu.com/it/u=2926715223,1445444764&fm=253&fmt=auto&app=120&f=JPEG?w=500&h=500',
+      },
+    ],
+    [],
+  );
+  const onPress = useCallback(() => imageRef.current?.show({ index: 1 }), []);
+  return (
+    <>
+      <ImageViewer
+        ref={imageRef}
+        data={mockData.map((el) => ({ key: `key-${el.url}`, source: { uri: el.url } }))}
+      />
+      <TouchableOpacity onPress={onPress}>
+        <Text>Show second image</Text>
+      </TouchableOpacity>
+    </>
+  );
+};
+export default memo(ImageViewerPage);
+```
 
 ## Props
 ### ImageViewer
