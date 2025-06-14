@@ -295,7 +295,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }, [screenDimensions.width]);
   const imageContainerStyle = useAnimatedStyle(() => {
     let opacity =
-      imageScale.value === 1 && (dragUpToCloseEnabled || imageY.value > 0)
+      (imageScale.value === 1 && (dragUpToCloseEnabled || imageY.value > 0)) || closeRate.value > 0
         ? Math.round(
             0xff * (1 - Math.abs(imageY.value) / screenDimensions.height) * (1 - closeRate.value),
           ).toString(16)
@@ -548,7 +548,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               currentWidthRange,
               Math.max(
                 -currentWidthRange,
-                savedImageX.value + (event.velocityX > 0 ? 50 : -50) * savedImageScale.value,
+                savedImageX.value + (event.velocityX > 0 ? 100 : -100) * savedImageScale.value,
               ),
             );
             imageX.value = withDecay(
@@ -579,7 +579,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               currentHeightRange,
               Math.max(
                 -currentHeightRange,
-                savedImageY.value + (event.velocityY > 0 ? 50 : -50) * savedImageScale.value,
+                savedImageY.value + (event.velocityY > 0 ? 100 : -100) * savedImageScale.value,
               ),
             );
             imageY.value = withDecay(
