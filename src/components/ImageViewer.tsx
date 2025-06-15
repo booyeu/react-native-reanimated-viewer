@@ -334,10 +334,24 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       setLoading(false);
       setFinishInit(false);
       setAnimatedOver(false);
-      showOriginalImage();
-      animatedRate.value = 0;
+      setTimeout(() => {
+        animatedRate.value = 0;
+        imageY.value = 0;
+        imageX.value = 0;
+        closeRate.value = 0;
+        showOriginalImage();
+      }, 0);
     },
-    [shouldCloseViewer, activeIndexStateRef, data, showOriginalImage, animatedRate],
+    [
+      shouldCloseViewer,
+      activeIndexStateRef,
+      data,
+      animatedRate,
+      imageY,
+      imageX,
+      closeRate,
+      showOriginalImage,
+    ],
   );
   const onCloseMeasure = useCallback(
     (_imageSize?: { width?: number; height?: number }, shouldCloseGesture?: GestureEnum) => {
@@ -732,9 +746,6 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       imageItemRef.current[index] = itemRef;
     },
     show: ({ index, source = data[index].source }) => {
-      closeRate.value = 0;
-      imageY.value = 0;
-      imageX.value = 0;
       const _screenDimensions = Dimensions.get('screen');
       initIndexRef.current = index;
       activeIndex.value = index;
