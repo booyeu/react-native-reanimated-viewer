@@ -850,7 +850,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                   return (
                     <Animated.Image
                       key={`image-viewer-${currentIndex}`}
-                      resizeMode={imageResizeMode}
+                      resizeMode="contain"
                       source={
                         typeof currentData.source === 'object'
                           ? { ...currentData.source }
@@ -866,9 +866,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
                       }}
                       onLoad={({ nativeEvent: { source } }) => {
                         runOnUI(setImageSize)(currentData.key, source || currentData.source);
+                        setFinishInit(true);
                         if (relativeActiveIndex === index - 1) {
                           setLoading(false);
-                          setFinishInit(true);
                           if (!loadedIndexListRef.current.includes(activeIndexState!)) {
                             loadedIndexListRef.current.push(activeIndexState!);
                           }
