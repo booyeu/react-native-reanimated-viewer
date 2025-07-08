@@ -24,7 +24,6 @@ import Animated, {
   useSharedValue,
   withTiming,
   withDecay,
-  useWorkletCallback,
   runOnUI,
   cancelAnimation,
   useAnimatedReaction,
@@ -131,7 +130,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     (value) => runOnJS(setIsScale)(value),
   );
 
-  const formatImageStyle = useWorkletCallback(
+  const formatImageStyle = useCallback(
     (
       imagePosition: number,
       imageSizeValue: Record<string, { width?: number; height?: number }>,
@@ -143,6 +142,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       activeIndexValue: number,
       imageScaleValue: number,
     ) => {
+      'worklet';
       const relativeActiveIndex = ((activeIndexValue % 3) + 3) % 3;
       const currentIndex =
         Math.floor(activeIndexValue / 3) * 3 +
@@ -204,7 +204,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           : 'flex') as 'none' | 'flex',
       };
     },
-    [screenDimensions.width, data, dragUpToCloseEnabled],
+    [data, screenDimensions.width, screenDimensions.height, dragUpToCloseEnabled],
   );
   const imageStyle_0 = useAnimatedStyle(
     () =>
@@ -421,23 +421,38 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       originalLayoutOffset?.pageY,
     ],
   );
-  const onClose = useWorkletCallback(
+  const onClose = useCallback(
     (shouldCloseGesture?: GestureEnum) => {
+      'worklet';
       imageScale.value = withTiming(1);
       runOnJS(onCloseMeasure)(imageSize.value[data[activeIndex.value].key], shouldCloseGesture);
       savedImageScale.value = 1;
       savedImageX.value = 0;
       savedImageY.value = 0;
     },
-    [data, onCloseMeasure],
+    [
+      activeIndex,
+      data,
+      imageScale,
+      imageSize,
+      onCloseMeasure,
+      savedImageScale,
+      savedImageX,
+      savedImageY,
+    ],
   );
-  const onRequestClose = useWorkletCallback(() => {
+  const onRequestClose = useCallback(() => {
+    'worklet';
     onClose(GestureEnum.MODAL);
   }, [onClose]);
 
-  const setImageSize = useWorkletCallback((key: string, _source) => {
-    imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
-  }, []);
+  const setImageSize = useCallback(
+    (key: string, _source) => {
+      'worklet';
+      imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
+    },
+    [imageSize],
+  );
 
   const dragLastTime = useSharedValue(0);
   const imageDragGestureY = useMemo(
@@ -623,14 +638,15 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
       screenDimensions.width,
     ],
   );
-  const resetScale = useWorkletCallback(() => {
+  const resetScale = useCallback(() => {
+    'worklet';
     imageScale.value = withTiming(1);
     imageX.value = withTiming(0);
     imageY.value = withTiming(0);
     savedImageScale.value = 1;
     savedImageX.value = 0;
     savedImageY.value = 0;
-  }, []);
+  }, [imageScale, imageX, imageY, savedImageScale, savedImageX, savedImageY]);
   const imageOriginalTapGesture = useMemo(
     () =>
       Gesture.Tap().onEnd(() => {
