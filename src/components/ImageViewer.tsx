@@ -447,7 +447,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
   }, [onClose]);
 
   const setImageSize = useCallback(
-    (key: string, _source) => {
+    (key: string, _source: { width?: number; height?: number }) => {
       'worklet';
       imageSize.value = Object.assign({}, imageSize.value, { [key]: _source });
     },
