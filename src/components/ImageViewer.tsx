@@ -199,7 +199,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           },
         ],
         display: ((relativeActiveIndex + 1) % 3 !== imagePosition &&
-        (imageYValue || imageScaleValue < 1)
+        (imageYValue || imageScaleValue !== 1)
           ? 'none'
           : 'flex') as 'none' | 'flex',
       };
@@ -538,6 +538,51 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         }),
     [dragLastTime, imageX, activeIndex, savedImageX, screenDimensions.width, data, _onChange],
   );
+  const formatImagePosition = useCallback(() => {
+    'worklet';
+    let flag = false;
+    const currentImageSize = imageSize.value[data[activeIndex.value].key];
+    const imageWHRate = (currentImageSize.width ?? 1) / (currentImageSize.height ?? 1);
+    const screenWHRate = screenDimensions.width / screenDimensions.height;
+    const currentImageHeight =
+      imageWHRate > screenWHRate ? screenDimensions.width / imageWHRate : screenDimensions.height;
+    const currentImageWidth =
+      imageWHRate > screenWHRate ? screenDimensions.width : screenDimensions.height * imageWHRate;
+    const currentWidthRange = (currentImageWidth * (savedImageScale.value - 1)) / 2;
+    const currentImageX = Math.min(
+      currentWidthRange,
+      Math.max(-currentWidthRange, savedImageX.value),
+    );
+    if (currentImageX !== savedImageX.value) {
+      imageX.value = withTiming(currentImageX);
+      savedImageX.value = currentImageX;
+      flag = true;
+    }
+    const currentHeightRange = Math.abs(
+      (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
+    );
+    const currentImageY = Math.min(
+      currentHeightRange,
+      Math.max(-currentHeightRange, savedImageY.value),
+    );
+    if (currentImageY !== savedImageY.value) {
+      imageY.value = withTiming(currentImageY);
+      savedImageY.value = currentImageY;
+      flag = true;
+    }
+    return { flag, currentWidthRange, currentHeightRange };
+  }, [
+    activeIndex.value,
+    data,
+    imageSize.value,
+    imageX,
+    imageY,
+    savedImageScale.value,
+    savedImageX,
+    savedImageY,
+    screenDimensions.height,
+    screenDimensions.width,
+  ]);
   const imageDragGestureMove = useMemo(
     () =>
       Gesture.Pan()
@@ -553,26 +598,9 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         .onEnd((event) => {
           savedImageX.value = imageX.value;
           savedImageY.value = imageY.value;
-          const currentImageSize = imageSize.value[data[activeIndex.value].key];
-          const imageWHRate = (currentImageSize.width ?? 1) / (currentImageSize.height ?? 1);
-          const screenWHRate = screenDimensions.width / screenDimensions.height;
-          const currentImageHeight =
-            imageWHRate > screenWHRate
-              ? screenDimensions.width / imageWHRate
-              : screenDimensions.height;
-          const currentImageWidth =
-            imageWHRate > screenWHRate
-              ? screenDimensions.width
-              : screenDimensions.height * imageWHRate;
-          const currentWidthRange = (currentImageWidth * (savedImageScale.value - 1)) / 2;
-          const currentImageX = Math.min(
-            currentWidthRange,
-            Math.max(-currentWidthRange, savedImageX.value),
-          );
-          if (currentImageX !== savedImageX.value) {
-            imageX.value = withTiming(currentImageX);
-            savedImageX.value = currentImageX;
-          } else if (event?.velocityX) {
+          const { flag, currentWidthRange, currentHeightRange } = formatImagePosition();
+          if (flag) return;
+          if (event?.velocityX) {
             const targetImageX = Math.min(
               currentWidthRange,
               Math.max(
@@ -593,17 +621,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
               },
             );
           }
-          const currentHeightRange = Math.abs(
-            (currentImageHeight * savedImageScale.value - screenDimensions.height) / 2,
-          );
-          const currentImageY = Math.min(
-            currentHeightRange,
-            Math.max(-currentHeightRange, savedImageY.value),
-          );
-          if (currentImageY !== savedImageY.value) {
-            imageY.value = withTiming(currentImageY);
-            savedImageY.value = currentImageY;
-          } else if (event?.velocityY) {
+          if (event?.velocityY) {
             const targetImageY = Math.min(
               currentHeightRange,
               Math.max(
@@ -625,18 +643,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             );
           }
         }),
-    [
-      activeIndex,
-      data,
-      imageSize,
-      imageX,
-      imageY,
-      savedImageScale,
-      savedImageX,
-      savedImageY,
-      screenDimensions.height,
-      screenDimensions.width,
-    ],
+    [formatImagePosition, imageX, imageY, savedImageScale.value, savedImageX, savedImageY],
   );
   const resetScale = useCallback(() => {
     'worklet';
@@ -711,7 +718,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
           const currentScale = Math.min(Math.max(1, imageScale.value), maxScale);
           if (currentScale === 1) {
             resetScale();
-          } else {
+          } else if (currentScale !== imageScale.value) {
             imageScale.value = withTiming(currentScale);
             const changedScale = currentScale / savedImageScale.value;
             savedImageScale.value = currentScale;
@@ -721,9 +728,24 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             imageY.value = withTiming(currentImageY);
             savedImageX.value = currentImageX;
             savedImageY.value = currentImageY;
+          } else {
+            savedImageScale.value = imageScale.value;
+            savedImageX.value = imageX.value;
+            savedImageY.value = imageY.value;
+            formatImagePosition();
           }
         }),
-    [imageScale, savedImageScale, imageX, imageY, savedImageX, savedImageY, maxScale, resetScale],
+    [
+      imageScale,
+      savedImageScale,
+      imageX,
+      imageY,
+      savedImageX,
+      savedImageY,
+      maxScale,
+      resetScale,
+      formatImagePosition,
+    ],
   );
   const imageLongPressGesture = useMemo(
     () =>
