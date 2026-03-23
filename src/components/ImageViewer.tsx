@@ -17,6 +17,7 @@ import {
   Image,
   ImageResizeMode,
   View,
+  ModalProps,
 } from 'react-native';
 import Animated, {
   runOnJS,
@@ -45,6 +46,7 @@ export type ImageViewerProps = {
   renderCustomComponent?: (_: { item: ImageViewerItemData; index: number }) => ReactElement;
   imageResizeMode?: ImageResizeMode;
   onChange?: (currentIndex: number) => void;
+  onVisibleChange?: (visible: boolean) => void;
   dragUpToCloseEnabled?: boolean;
   maxScale?: number;
   doubleTapScale?: number;
@@ -58,6 +60,7 @@ export type ImageViewerProps = {
     pageX?: number;
     pageY?: number;
   };
+  modalProps?: ModalProps;
 };
 type LayoutData = { width: number; height: number; pageX: number; pageY: number };
 export type ImageViewerRef = {
@@ -94,11 +97,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     onLongPress,
     imageResizeMode = 'contain',
     onChange,
+    onVisibleChange,
     dragUpToCloseEnabled,
     maxScale = 3,
     doubleTapScale = 2,
     shouldCloseViewer,
     originalLayoutOffset,
+    modalProps,
   } = props;
   const imageItemRef = useRef<RefObject<View>[]>([]);
   const imageMemoSizeRef = useRef<Record<string, { width: number; height: number }>>({});
@@ -341,11 +346,13 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
         closeRate.value = 0;
         showOriginalImage();
       }, 0);
+      onVisibleChange?.(false);
     },
     [
       shouldCloseViewer,
       activeIndexStateRef,
       data,
+      onVisibleChange,
       animatedRate,
       imageY,
       imageX,
@@ -572,12 +579,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
     }
     return { flag, currentWidthRange, currentHeightRange };
   }, [
-    activeIndex.value,
+    activeIndex,
     data,
-    imageSize.value,
+    imageSize,
     imageX,
     imageY,
-    savedImageScale.value,
+    savedImageScale,
     savedImageX,
     savedImageY,
     screenDimensions.height,
@@ -643,7 +650,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             );
           }
         }),
-    [formatImagePosition, imageX, imageY, savedImageScale.value, savedImageX, savedImageY],
+    [formatImagePosition, imageX, imageY, savedImageScale, savedImageX, savedImageY],
   );
   const resetScale = useCallback(() => {
     'worklet';
@@ -812,6 +819,7 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             });
           }, 0);
         }
+        onVisibleChange?.(true);
       };
       if (source.width && source.height) {
         originalImageSize.value = { width: source.width, height: source.height };
@@ -855,11 +863,12 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
 
   return (
     <Modal
-      visible={!!activeSource}
       animationType="fade"
       transparent
-      onRequestClose={onRequestClose}
       statusBarTranslucent
+      {...modalProps}
+      visible={!!activeSource}
+      onRequestClose={onRequestClose}
     >
       <GestureHandlerRootView style={styles.full}>
         {activeSource ? (
