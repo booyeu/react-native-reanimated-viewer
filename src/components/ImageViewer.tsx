@@ -532,7 +532,8 @@ const ImageViewer = forwardRef<ImageViewerRef, ImageViewerProps>((props, ref) =>
             imageX.value = withTiming(
               (screenDimensions.width + IMAGE_SPACE) * (event.translationX < 0 ? -1 : 1),
               { duration: 200 },
-              () => {
+              (finished) => {
+                if (finished) return;
                 activeIndex.value += event.translationX < 0 ? 1 : -1;
                 imageX.value = 0;
                 runOnJS(_onChange)(activeIndex.value);
